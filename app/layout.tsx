@@ -1,4 +1,32 @@
-import type { Metadata } from "next";
+// -----------------------------
+// 3. Root layout
+// -----------------------------
+// app/layout.tsx
+import './globals.css'
+import { Header } from './Header'
+import { ThemeProvider } from '../lib/ThemeContext'
+
+export const metadata = {
+  title: 'Rock It Summer Sector Series',
+  description: 'Track your climbs for the 2025 Summer Sector Series at Rock It Derwent Park',
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+        <ThemeProvider>
+          <div className="max-w-6xl mx-auto p-6">
+            <Header />
+            {children}
+          </div>
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+
+/*import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -32,3 +60,4 @@ export default function RootLayout({
     </html>
   );
 }
+*/
