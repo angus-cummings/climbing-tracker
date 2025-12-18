@@ -348,7 +348,7 @@ export default function ClimbsPage() {
 }
 
 function WallCard({ wall, climbs, user, userRole, showPhoto }: any) {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   return (
     <div 

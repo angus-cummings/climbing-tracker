@@ -5,7 +5,8 @@ import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
 
 type CompetitorStats = {
-  competitor_id: string
+  competitor_number: number | null
+  user_id: string
   total_sends: number
   comp_cohort: string
 }
@@ -31,6 +32,7 @@ export default function LeaderboardPage() {
           sent,
           profiles!inner (
             user_id,
+            competitor_number,
             comp_cohort
           )
         `)
@@ -48,13 +50,15 @@ export default function LeaderboardPage() {
       ascents?.forEach((ascent: any) => {
         const userId = ascent.user_id
         const cohort = ascent.profiles?.comp_cohort || 'inclusive'
+        const competitorNumber = ascent.profiles?.competitor_number || null
         
         if (statsMap.has(userId)) {
           const stats = statsMap.get(userId)!
           stats.total_sends += 1
         } else {
           statsMap.set(userId, {
-            competitor_id: userId,
+            competitor_number: competitorNumber,
+            user_id: userId,
             total_sends: 1,
             comp_cohort: cohort
           })
@@ -203,7 +207,7 @@ export default function LeaderboardPage() {
                     className="text-left px-6 py-4 text-sm font-semibold"
                     style={{ color: 'var(--foreground)' }}
                   >
-                    Competitor ID
+                    Competitor Number
                   </th>
                   <th 
                     className="text-left px-6 py-4 text-sm font-semibold"
@@ -221,10 +225,10 @@ export default function LeaderboardPage() {
               </thead>
               <tbody>
                 {filteredCompetitors.map((competitor, index) => {
-                  const isCurrentUser = competitor.competitor_id === user.id
+                  const isCurrentUser = competitor.user_id === user.id
                   return (
                     <tr
-                      key={competitor.competitor_id}
+                      key={competitor.user_id}
                       className="transition"
                       style={{
                         backgroundColor: isCurrentUser 
@@ -259,14 +263,18 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td 
-                        className="px-6 py-4 font-mono text-sm"
+                        className="px-6 py-4 text-sm"
                         style={{ 
                           color: isCurrentUser ? 'var(--accent)' : 'var(--foreground)',
                           fontWeight: isCurrentUser ? 600 : 400
                         }}
                       >
                         <div className="flex items-center gap-2">
-                          {competitor.competitor_id.substring(0, 8)}...
+                          {competitor.competitor_number !== null ? (
+                            <span className="font-semibold">#{competitor.competitor_number}</span>
+                          ) : (
+                            <span className="text-xs opacity-60 italic">No number assigned</span>
+                          )}
                           {isCurrentUser && (
                             <span 
                               className="text-xs px-2 py-0.5 rounded-full font-sans font-semibold"
@@ -322,7 +330,7 @@ export default function LeaderboardPage() {
                 Your Rank
               </div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>
-                {filteredCompetitors.findIndex(c => c.competitor_id === user.id) + 1 || '-'}
+                {filteredCompetitors.findIndex(c => c.user_id === user.id) + 1 || '-'}
               </div>
             </div>
             <div>
@@ -330,7 +338,7 @@ export default function LeaderboardPage() {
                 Your Total Sends
               </div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>
-                {filteredCompetitors.find(c => c.competitor_id === user.id)?.total_sends || 0}
+                {filteredCompetitors.find(c => c.user_id === user.id)?.total_sends || 0}
               </div>
             </div>
             <div>

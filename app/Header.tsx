@@ -29,33 +29,37 @@ export function Header() {
         Rock It Summer Sector
       </div>
       <nav className="flex items-center gap-4 text-sm">
-        <Link 
-          href="/climbs" 
-          className="font-medium transition-colors"
-          style={{ color: 'var(--foreground-secondary)' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
-        >
-          Climbs
-        </Link>
-        <Link 
-          href="/setters" 
-          className="font-medium transition-colors"
-          style={{ color: 'var(--foreground-secondary)' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
-        >
-          Setters
-        </Link>
-        <Link 
-          href="/leaderboard" 
-          className="font-medium transition-colors"
-          style={{ color: 'var(--foreground-secondary)' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
-        >
-          Leaderboard
-        </Link>
+        {!loading && user && (
+          <>
+            <Link 
+              href="/climbs" 
+              className="font-medium transition-colors"
+              style={{ color: 'var(--foreground-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+            >
+              Climbs
+            </Link>
+            <Link 
+              href="/setters" 
+              className="font-medium transition-colors"
+              style={{ color: 'var(--foreground-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+            >
+              Setters
+            </Link>
+            <Link 
+              href="/leaderboard" 
+              className="font-medium transition-colors"
+              style={{ color: 'var(--foreground-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+            >
+              Leaderboard
+            </Link>
+          </>
+        )}
         
         {/* Theme Toggle Button */}
         <button

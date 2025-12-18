@@ -77,10 +77,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-[80vh] items-center justify-center">
+    <main className="flex min-h-[80vh] items-center justify-center px-4 py-6 sm:px-6">
       <div className="w-full max-w-md">
         <div 
-          className="rounded-2xl p-8 shadow-xl"
+          className="rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl"
           style={{
             backgroundColor: 'var(--card-bg)',
             borderWidth: '1px',
@@ -89,14 +89,14 @@ export default function RegisterPage() {
             boxShadow: `0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow)`
           }}
         >
-          <h1 className="mb-2 text-3xl font-bold" style={{ color: 'var(--foreground)' }}>
+          <h1 className="mb-2 text-2xl sm:text-3xl font-bold" style={{ color: 'var(--foreground)' }}>
             Create Account
           </h1>
-          <p className="mb-6" style={{ color: 'var(--foreground-secondary)' }}>
+          <p className="mb-4 sm:mb-6 text-sm sm:text-base" style={{ color: 'var(--foreground-secondary)' }}>
             Join the Summer Sector Series
           </p>
 
-          <form onSubmit={handleSignUp} className="space-y-4">
+          <form onSubmit={handleSignUp} className="space-y-3 sm:space-y-4">
             <div>
               <label 
                 className="mb-1.5 block text-sm font-medium"
@@ -109,13 +109,14 @@ export default function RegisterPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-lg px-4 py-2.5 outline-none transition"
+                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
                   backgroundColor: 'var(--input-bg)',
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--input-border)',
+                  minHeight: '44px',
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = 'var(--accent)'
@@ -141,13 +142,14 @@ export default function RegisterPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full rounded-lg px-4 py-2.5 outline-none transition"
+                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
                   backgroundColor: 'var(--input-bg)',
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--input-border)',
+                  minHeight: '44px',
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = 'var(--accent)'
@@ -173,13 +175,14 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter your password"
-                className="w-full rounded-lg px-4 py-2.5 outline-none transition"
+                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
                   backgroundColor: 'var(--input-bg)',
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--input-border)',
+                  minHeight: '44px',
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = 'var(--accent)'
@@ -203,13 +206,14 @@ export default function RegisterPage() {
               <select
                 value={compCohort}
                 onChange={e => setCompCohort(e.target.value as 'male' | 'female' | 'inclusive')}
-                className="w-full rounded-lg px-4 py-2.5 outline-none transition"
+                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
                   backgroundColor: 'var(--input-bg)',
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--input-border)',
+                  minHeight: '44px',
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = 'var(--accent)'
@@ -225,14 +229,14 @@ export default function RegisterPage() {
                 <option value="male">Male</option>
                 <option value="female">Female</option>
               </select>
-              <p className="mt-1 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
+              <p className="mt-1 text-xs sm:text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
                 Select your competition category for leaderboards and events
               </p>
             </div>
 
             {error && (
               <div 
-                className="rounded-lg px-4 py-3 text-sm"
+                className="rounded-lg px-4 py-3 text-sm sm:text-sm"
                 style={{
                   backgroundColor: 'rgba(239, 68, 68, 0.1)',
                   color: '#ef4444',
@@ -247,7 +251,7 @@ export default function RegisterPage() {
 
             {message && (
               <div 
-                className="rounded-lg px-4 py-3 text-sm"
+                className="rounded-lg px-4 py-3 text-sm sm:text-sm"
                 style={{
                   backgroundColor: 'rgba(16, 185, 129, 0.1)',
                   color: '#10b981',
@@ -263,10 +267,11 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg px-4 py-2.5 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 backgroundColor: 'var(--accent)',
                 color: 'var(--accent-text)',
+                minHeight: '44px',
               }}
               onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = 'var(--accent-hover)')}
               onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = 'var(--accent)')}
@@ -275,7 +280,7 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm" style={{ color: 'var(--foreground-secondary)' }}>
+          <div className="mt-4 sm:mt-6 text-center text-sm" style={{ color: 'var(--foreground-secondary)' }}>
             Already have an account?{' '}
             <Link 
               href="/" 
