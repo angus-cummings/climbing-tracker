@@ -128,7 +128,7 @@ export default function ClimbsPage() {
     return acc
   }, {} as Record<number, { wall: any, climbs: any[] }>)
 
-  const wallGroups = Object.values(groupedClimbs)
+  const wallGroups: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs)
 
   if (!user) return <p>Loading…</p>
 
