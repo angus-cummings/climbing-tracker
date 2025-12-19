@@ -139,9 +139,8 @@ export default function ClimbsPage() {
   }, {} as Record<number, { wall: any, climbs: any[] }>)
 
   // Sort climbs within each wall group by sector_tag_id
-  const wallGroups: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs).map(group => ({
-    ...group,
-    climbs: group.climbs.sort((a, b) => {
+  const wallGroups: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs).map(group => {
+    const sortedClimbs = [...group.climbs].sort((a, b) => {
       // Sort by sector_tag_id if available, otherwise by id
       const aTag = a.sector_tag_id ?? a.id
       const bTag = b.sector_tag_id ?? b.id
@@ -152,7 +151,11 @@ export default function ClimbsPage() {
       // Numeric comparison
       return Number(aTag) - Number(bTag)
     })
-  }))
+    return {
+      wall: group.wall,
+      climbs: sortedClimbs
+    }
+  })
 
   if (!user) return <p>Loading…</p>
 
