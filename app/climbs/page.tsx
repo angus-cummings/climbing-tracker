@@ -39,33 +39,43 @@ export default function ClimbsPage() {
   useEffect(() => {
     if (!user) return
     
-    // Fetch climbs
-    supabase
-      .from('climbs')
-      .select(`
-        id,
-        photo,
-        hold_colour:colours!hold_colour_id (
+    // Fetch all climbs
+    Promise.all([
+      supabase
+        .from('climbs')
+        .select(`
           id,
-          name,
-          hex_code
-        ),
-        wall:walls!wall (
-          id,
-          name
-        ),
-        tag_colour:colours!tag_colour_id (
-          id,
-          name,
-          hex_code
-        ),
-        ascents (
-          id,
-          sent
-        )
-      `)
-      .order('id', { ascending: false })
-      .then(({ data }) => setClimbs(data ?? []))
+          sector_tag_id,
+          photo,
+          hold_colour:colours!hold_colour_id (
+            id,
+            name,
+            hex_code
+          ),
+          wall:walls!wall (
+            id,
+            name
+          ),
+          tag_colour:colours!tag_colour_id (
+            id,
+            name,
+            hex_code
+          )
+        `)
+        .order('sector_tag_id', { ascending: true }),
+      // Fetch current user's ascents separately
+      supabase
+        .from('ascents')
+        .select('id, climb_id, sent, user_id')
+        .eq('user_id', user.id)
+    ]).then(([{ data: climbsData }, { data: userAscents }]) => {
+      // Merge ascents into climbs, filtering to only show current user's ascents
+      const climbsWithUserAscents = (climbsData || []).map(climb => ({
+        ...climb,
+        ascents: (userAscents || []).filter(ascent => ascent.climb_id === climb.id)
+      }))
+      setClimbs(climbsWithUserAscents)
+    })
     
     // Fetch user role
     supabase
@@ -115,7 +125,7 @@ export default function ClimbsPage() {
     setFilteredClimbs(filtered)
   }, [climbs, selectedWall, selectedHoldColour, selectedTagColour, sentFilter])
 
-  // Group climbs by wall
+  // Group climbs by wall and sort by sector_tag_id
   const groupedClimbs = filteredClimbs.reduce((acc, climb) => {
     const wallId = climb.wall.id
     if (!acc[wallId]) {
@@ -128,7 +138,21 @@ export default function ClimbsPage() {
     return acc
   }, {} as Record<number, { wall: any, climbs: any[] }>)
 
-  const wallGroups: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs)
+  // Sort climbs within each wall group by sector_tag_id
+  const wallGroups: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs).map(group => ({
+    ...group,
+    climbs: group.climbs.sort((a, b) => {
+      // Sort by sector_tag_id if available, otherwise by id
+      const aTag = a.sector_tag_id ?? a.id
+      const bTag = b.sector_tag_id ?? b.id
+      if (typeof aTag === 'string' && typeof bTag === 'string') {
+        // String comparison (e.g., "A1", "A2", "B1")
+        return aTag.localeCompare(bTag, undefined, { numeric: true, sensitivity: 'base' })
+      }
+      // Numeric comparison
+      return Number(aTag) - Number(bTag)
+    })
+  }))
 
   if (!user) return <p>Loading…</p>
 
@@ -404,7 +428,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto }: any) {
         <div className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
           {climbs.map((climb: any) => (
             <ClimbRow 
-              key={climb.id} 
+              key={climb.sector_tag_id || climb.id} 
               climb={climb} 
               user={user} 
               userRole={userRole} 
@@ -457,8 +481,21 @@ function ClimbRow({ climb, user, userRole, showPhoto }: any) {
 
       {/* Climb Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-          {climb.hold_colour.name}
+        <div className="flex items-center gap-2 mb-1">
+          {climb.sector_tag_id && (
+            <span 
+              className="text-sm font-semibold px-2 py-0.5 rounded"
+              style={{ 
+                color: 'var(--accent-text)',
+                backgroundColor: 'var(--accent)',
+              }}
+            >
+              {climb.sector_tag_id}
+            </span>
+          )}
+          <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+            {climb.hold_colour.name}
+          </div>
         </div>
         <div className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
           Grade: {climb.tag_colour.name}

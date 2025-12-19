@@ -55,19 +55,26 @@ export default function RegisterPage() {
         return
       }
 
-      // Create profile with comp_cohort
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: data.user.id,
-          comp_cohort: compCohort,
-        })
+      // Create profile with comp_cohort using database function (bypasses RLS)
+      const { error: profileError } = await supabase.rpc('create_user_profile', {
+        p_user_id: data.user.id,
+        p_comp_cohort: compCohort,
+      })
 
       setLoading(false)
 
       if (profileError) {
         setError(`Account created but profile setup failed: ${profileError.message}`)
+        return
+      }
+
+      // Check if email confirmation is required
+      // If session is null, email confirmation is required
+      if (!data.session) {
+        // Redirect to email confirmation page with email in query params
+        router.push(`/confirm-email?email=${encodeURIComponent(email)}`)
       } else {
+        // Email confirmation not required, go directly to climbs
         setMessage('Registration successful! Redirecting to climbs...')
         setTimeout(() => router.push('/climbs'), 1500)
       }
