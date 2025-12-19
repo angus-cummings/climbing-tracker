@@ -135,8 +135,7 @@ export default function SettersPage() {
             Setter panel
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-            Add a new climb to the database. In this gym, the <span className="font-medium">tag colour</span>{' '}
-            represents the grade.
+            Add a new climb to the database.
           </p>
         </div>
 
