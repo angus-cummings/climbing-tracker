@@ -490,15 +490,15 @@ function ClimbRow({ climb, user, userRole, showPhoto }: any) {
                 backgroundColor: 'var(--accent)',
               }}
             >
-              {climb.sector_tag_id}
+              # {climb.sector_tag_id}
             </span>
           )}
           <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-            {climb.hold_colour.name}
+            Grade: {climb.tag_colour.name}
           </div>
         </div>
         <div className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
-          Grade: {climb.tag_colour.name}
+            {climb.hold_colour.name} holds          
         </div>
       </div>
 
