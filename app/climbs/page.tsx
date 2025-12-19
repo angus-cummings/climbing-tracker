@@ -139,7 +139,7 @@ export default function ClimbsPage() {
   }, {} as Record<number, { wall: any, climbs: any[] }>)
 
   // Sort climbs within each wall group by sector_tag_id
-  const wallGroups: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs).map(group => {
+  const wallGroups: Array<{ wall: any, climbs: any[] }> = (Object.values(groupedClimbs) as Array<{ wall: any, climbs: any[] }>).map((group) => {
     const sortedClimbs = [...group.climbs].sort((a, b) => {
       // Sort by sector_tag_id if available, otherwise by id
       const aTag = a.sector_tag_id ?? a.id
@@ -431,7 +431,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto }: any) {
         <div className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
           {climbs.map((climb: any) => (
             <ClimbRow 
-              key={climb.sector_tag_id || climb.id} 
+              key={climb.sector_tag_id ?? climb.id} 
               climb={climb} 
               user={user} 
               userRole={userRole} 
