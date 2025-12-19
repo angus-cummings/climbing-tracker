@@ -34,21 +34,9 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
     stopCamera()
   }
 
-  const startCamera = async () => {
-    try {
-      setCameraError(null)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' } // Prefer back camera on mobile
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        setShowCamera(true)
-      }
-    } catch (err: any) {
-      console.error('Camera error:', err)
-      setCameraError(err.message || 'Failed to access camera. Please check permissions.')
-    }
+  const startCamera = () => {
+    setCameraError(null)
+    setShowCamera(true)
   }
 
   const stopCamera = () => {
@@ -128,6 +116,46 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
       setUploading(false)
     }
   }
+
+  // Set up camera stream when showCamera becomes true and video element is available
+  useEffect(() => {
+    if (!showCamera || !videoRef.current) return
+
+    let stream: MediaStream | null = null
+
+    const setupCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' } // Prefer back camera on mobile
+        })
+        streamRef.current = stream
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.play().catch(err => {
+            console.error('Error playing video:', err)
+            setCameraError('Failed to start camera preview')
+          })
+        }
+      } catch (err: any) {
+        console.error('Camera error:', err)
+        setCameraError(err.message || 'Failed to access camera. Please check permissions.')
+        setShowCamera(false)
+      }
+    }
+
+    setupCamera()
+
+    // Cleanup function
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null
+      }
+    }
+  }, [showCamera])
 
   useEffect(() => {
     // Cleanup camera stream on unmount
@@ -232,8 +260,13 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
               ref={videoRef}
               autoPlay
               playsInline
+              muted
               className="w-full h-auto max-h-96"
-              style={{ display: 'block' }}
+              style={{ 
+                display: 'block',
+                minHeight: '200px',
+                backgroundColor: '#000'
+              }}
             />
           </div>
           <div className="flex items-center gap-3">
