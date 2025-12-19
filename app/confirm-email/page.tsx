@@ -170,7 +170,7 @@ function ConfirmEmailContent() {
                 color: 'var(--accent-text)',
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--accent)')}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--accent)'}
             >
               Sign In
             </Link>
