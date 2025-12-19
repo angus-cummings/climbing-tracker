@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 
 type ImageUploadProps = {
@@ -25,9 +26,9 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
       return
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be smaller than 5MB')
+    // Validate file size (max 20MB before compression - we'll compress it)
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Image must be smaller than 20MB')
       return
     }
 
@@ -35,17 +36,33 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
     setUploading(true)
 
     try {
-      // Create a unique file name
-      const fileExt = file.name.split('.').pop() || 'jpg'
-      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
+      // Compression options
+      const options = {
+        maxSizeMB: 1, // Maximum file size after compression (1MB)
+        maxWidthOrHeight: 1920, // Maximum width or height (good for web display)
+        useWebWorker: true, // Use web worker for better performance
+        fileType: 'image/jpeg', // Convert to JPEG for better compression
+        initialQuality: 0.8, // Initial quality (0.8 = 80%)
+      }
+
+      // Compress the image
+      const compressedFile = await imageCompression(file, options)
+      
+      // Log compression stats
+      const compressionRatio = ((1 - compressedFile.size / file.size) * 100).toFixed(1)
+      console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${compressionRatio}% reduction)`)
+
+      // Create a unique file name (always use .jpg since we convert to JPEG)
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.jpg`
       const filePath = `climb-images/${fileName}`
 
-      // Upload to Supabase Storage
+      // Upload compressed image to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('climbs')
-        .upload(filePath, file, {
+        .upload(filePath, compressedFile, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: 'image/jpeg'
         })
 
       if (uploadError) {
@@ -171,7 +188,7 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
       )}
 
       <p className="text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-        On mobile: Opens camera app. On desktop: Choose file or use camera if available.
+        Images are automatically compressed to save storage. Max 20MB before compression, compressed to ~1MB.
       </p>
     </div>
   )

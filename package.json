@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "browser-image-compression": "^2.0.2",
     "dotenv": "^17.2.3",
     "next": "16.0.10",
     "react": "19.2.1",

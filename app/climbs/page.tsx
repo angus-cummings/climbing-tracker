@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
+import { ImageModal } from '../../components/ImageModal'
 
 type Wall = {
   id: number
@@ -28,6 +29,7 @@ export default function ClimbsPage() {
   const [walls, setWalls] = useState<Wall[]>([])
   const [colours, setColours] = useState<Colour[]>([])
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
   
   // Filter states
   const [showPhotos, setShowPhotos] = useState(true)
@@ -366,15 +368,23 @@ export default function ClimbsPage() {
               user={user} 
               userRole={userRole} 
               showPhoto={showPhotos}
+              onImageClick={setSelectedImage}
             />
           ))}
         </div>
       )}
+
+      {/* Image Modal */}
+      <ImageModal
+        imageUrl={selectedImage}
+        onClose={() => setSelectedImage(null)}
+        alt="Climb photo"
+      />
     </main>
   )
 }
 
-function WallCard({ wall, climbs, user, userRole, showPhoto }: any) {
+function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick }: any) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -436,6 +446,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto }: any) {
               user={user} 
               userRole={userRole} 
               showPhoto={showPhoto}
+              onImageClick={onImageClick}
             />
           ))}
         </div>
@@ -443,7 +454,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto }: any) {
     </div>
   )
 }
-function ClimbRow({ climb, user, userRole, showPhoto }: any) {
+function ClimbRow({ climb, user, userRole, showPhoto, onImageClick }: any) {
   const router = useRouter()
   const ascent = climb.ascents?.[0]
   const canEdit = userRole === 'setter' || userRole === 'admin'
@@ -467,17 +478,25 @@ function ClimbRow({ climb, user, userRole, showPhoto }: any) {
       {/* Photo */}
       {showPhoto && climb.photo && (
         <div 
-          className="relative flex-shrink-0 rounded-lg overflow-hidden"
+          className="relative flex-shrink-0 rounded-lg overflow-hidden cursor-pointer transition-opacity"
           style={{ 
             backgroundColor: 'var(--background-secondary)',
             width: '120px',
             height: '90px'
+          }}
+          onClick={() => onImageClick(climb.photo)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.8'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1'
           }}
         >
           <img
             src={climb.photo}
             alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
             className="w-full h-full object-cover"
+            draggable={false}
           />
         </div>
       )}
