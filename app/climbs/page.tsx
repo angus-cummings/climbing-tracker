@@ -20,6 +20,8 @@ type Colour = {
   id: number
   name: string
   hex_code: string | null
+  usage?: 'hold' | 'tag' | 'both'
+  sort_order?: number | null
 }
 
 export default function ClimbsPage() {
@@ -91,7 +93,7 @@ export default function ClimbsPage() {
     // Fetch walls and colours for filters
     Promise.all([
       supabase.from('walls').select('id, name').order('name'),
-      supabase.from('colours').select('id, name, hex_code').order('name')
+      supabase.from('colours').select('id, name, hex_code, usage, sort_order').order('name')
     ]).then(([{ data: wallData }, { data: colourData }]) => {
       setWalls(wallData ?? [])
       setColours(colourData ?? [])
@@ -331,11 +333,22 @@ export default function ClimbsPage() {
               onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
             >
               <option value="all">All grades</option>
-              {colours.map(colour => (
-                <option key={colour.id} value={String(colour.id)}>
-                  {colour.name}
-                </option>
-              ))}
+              {colours
+                .filter(c => c.usage === 'tag' || c.usage === 'both' || !c.usage)
+                .sort((a, b) => {
+                  // Sort by sort_order if available, otherwise by name
+                  const aOrder = a.sort_order ?? Infinity
+                  const bOrder = b.sort_order ?? Infinity
+                  if (aOrder !== Infinity || bOrder !== Infinity) {
+                    return (aOrder ?? Infinity) - (bOrder ?? Infinity)
+                  }
+                  return a.name.localeCompare(b.name)
+                })
+                .map(colour => (
+                  <option key={colour.id} value={String(colour.id)}>
+                    {colour.name}
+                  </option>
+                ))}
             </select>
           </div>
 
