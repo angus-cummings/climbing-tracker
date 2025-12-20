@@ -32,6 +32,7 @@ export default function ClimbsPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   
   // Filter states
+  const [showFilters, setShowFilters] = useState(false) // Closed by default
   const [showPhotos, setShowPhotos] = useState(true)
   const [selectedWall, setSelectedWall] = useState<string>('all')
   const [selectedHoldColour, setSelectedHoldColour] = useState<string>('all')
@@ -146,12 +147,22 @@ export default function ClimbsPage() {
       // Sort by sector_tag_id if available, otherwise by id
       const aTag = a.sector_tag_id ?? a.id
       const bTag = b.sector_tag_id ?? b.id
+      
+      // Handle string comparison
       if (typeof aTag === 'string' && typeof bTag === 'string') {
-        // String comparison (e.g., "A1", "A2", "B1")
         return aTag.localeCompare(bTag, undefined, { numeric: true, sensitivity: 'base' })
       }
-      // Numeric comparison
-      return Number(aTag) - Number(bTag)
+      
+      // Handle numeric comparison
+      if (typeof aTag === 'number' && typeof bTag === 'number') {
+        return aTag - bTag
+      }
+      
+      // Handle mixed types: convert both to strings for consistent comparison
+      // This prevents NaN issues when mixing strings and numbers
+      const aStr = String(aTag)
+      const bStr = String(bTag)
+      return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
     })
     return {
       wall: group.wall,
@@ -169,7 +180,7 @@ export default function ClimbsPage() {
       
       {/* Filters Section */}
       <div 
-        className="mb-6 rounded-2xl p-4"
+        className="mb-6 rounded-2xl overflow-hidden"
         style={{
           backgroundColor: 'var(--card-bg)',
           borderWidth: '1px',
@@ -177,7 +188,73 @@ export default function ClimbsPage() {
           borderColor: 'var(--card-border)',
         }}
       >
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Filters Header - Hamburger Button */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="w-full px-4 py-3 flex items-center justify-between cursor-pointer transition"
+          style={{
+            backgroundColor: 'var(--background-secondary)',
+            borderBottomWidth: showFilters ? '1px' : '0',
+            borderBottomStyle: 'solid',
+            borderBottomColor: 'var(--card-border)',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--background-secondary)'}
+        >
+          <div className="flex items-center gap-3">
+            <svg
+              className="transition-transform"
+              style={{
+                transform: showFilters ? 'rotate(90deg)' : 'rotate(0deg)',
+                width: '20px',
+                height: '20px',
+                fill: 'var(--foreground-secondary)',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <path d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
+            </svg>
+            <span className="font-medium" style={{ color: 'var(--foreground)' }}>
+              Filters
+            </span>
+            {(() => {
+              const activeFilters = [
+                selectedWall !== 'all',
+                selectedHoldColour !== 'all',
+                selectedTagColour !== 'all',
+                sentFilter !== 'all',
+              ].filter(Boolean).length
+              return activeFilters > 0 ? (
+                <span 
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: 'var(--accent)',
+                    color: 'var(--accent-text)',
+                  }}
+                >
+                  {activeFilters}
+                </span>
+              ) : null
+            })()}
+          </div>
+          <svg
+            className="transition-transform"
+            style={{
+              transform: showFilters ? 'rotate(180deg)' : 'rotate(0deg)',
+              width: '20px',
+              height: '20px',
+              fill: 'var(--foreground-secondary)',
+            }}
+            viewBox="0 0 20 20"
+          >
+            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+          </svg>
+        </button>
+
+        {/* Filters Content - Collapsible */}
+        {showFilters && (
+          <div className="p-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Wall Filter */}
           <div className="space-y-1">
             <label className="text-xs font-medium" style={{ color: 'var(--foreground-secondary)' }}>
@@ -337,12 +414,14 @@ export default function ClimbsPage() {
               Clear filters
             </button>
           </div>
-        </div>
+            </div>
 
-        {/* Results count */}
-        <div className="mt-3 text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-          Showing {filteredClimbs.length} of {climbs.length} climbs
-        </div>
+            {/* Results count */}
+            <div className="mt-3 text-sm" style={{ color: 'var(--foreground-secondary)' }}>
+              Showing {filteredClimbs.length} of {climbs.length} climbs
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Climbs Grid */}
@@ -539,7 +618,7 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick }: any) {
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-hover)'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--accent)'}
           >
-            Log send
+            Sent!
           </button>
         )}
         {canEdit && (

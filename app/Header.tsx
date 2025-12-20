@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/useUser'
 import { useTheme } from '../lib/ThemeContext'
@@ -12,6 +12,21 @@ export function Header() {
   const { theme, toggleTheme } = useTheme()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!user) {
+      setUserRole(null)
+      return
+    }
+
+    supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => setUserRole(data?.role ?? null))
+  }, [user])
 
   const handleLogout = async () => {
     try {
@@ -22,6 +37,8 @@ export function Header() {
       setLoggingOut(false)
     }
   }
+
+  const canAccessSetters = userRole === 'setter' || userRole === 'admin'
 
   return (
     <header className="mb-6 flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--border)' }}>
@@ -40,15 +57,17 @@ export function Header() {
             >
               Climbs
             </Link>
-            <Link 
-              href="/setters" 
-              className="font-medium transition-colors"
-              style={{ color: 'var(--foreground-secondary)' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
-            >
-              Setters
-            </Link>
+            {canAccessSetters && (
+              <Link 
+                href="/setters" 
+                className="font-medium transition-colors"
+                style={{ color: 'var(--foreground-secondary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+              >
+                Setters
+              </Link>
+            )}
             <Link 
               href="/leaderboard" 
               className="font-medium transition-colors"

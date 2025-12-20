@@ -36,9 +36,14 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
+    // Get the current origin for the redirect URL
+    const redirectTo = `${window.location.origin}/auth/callback?next=/climbs`
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
     })
 
     if (signUpError) {
@@ -232,9 +237,9 @@ export default function RegisterPage() {
                 }}
                 disabled={loading}
               >
-                <option value="inclusive">Inclusive</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
+                <option value="inclusive">Inclusive</option>
               </select>
               <p className="mt-1 text-xs sm:text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
                 Select your competition category for leaderboards and events

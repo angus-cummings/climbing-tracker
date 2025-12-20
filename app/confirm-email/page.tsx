@@ -31,9 +31,14 @@ function ConfirmEmailContent() {
     setResendError(null)
     setResendMessage(null)
 
+    // Get the current origin for the redirect URL
+    const redirectTo = `${window.location.origin}/auth/callback?next=/climbs`
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
     })
 
     setResending(false)

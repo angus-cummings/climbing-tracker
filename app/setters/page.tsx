@@ -12,9 +12,15 @@ type NewClimb = {
   photo: string
 }
 
+type Gym = {
+  id: number
+  name: string
+}
+
 type Wall = {
   id: number
   name: string
+  gym: number | null
 }
 
 type Colour = {
@@ -32,6 +38,8 @@ export default function SettersPage() {
     tag_colour_id: '',
     photo: '',
   })
+  const [selectedGymId, setSelectedGymId] = useState<number | null>(null)
+  const [gyms, setGyms] = useState<Gym[]>([])
   const [walls, setWalls] = useState<Wall[]>([])
   const [colours, setColours] = useState<Colour[]>([])
   const [loading, setLoading] = useState(false)
@@ -42,11 +50,13 @@ export default function SettersPage() {
   useEffect(() => {
     const loadOptions = async () => {
       setLoadingOptions(true)
-      const [{ data: wallData }, { data: colourData }] = await Promise.all([
-        supabase.from('walls').select('id, name'),
+      const [{ data: gymData }, { data: wallData }, { data: colourData }] = await Promise.all([
+        supabase.from('gyms').select('id, name').order('name'),
+        supabase.from('walls').select('id, name, gym').order('name'),
         supabase.from('colours').select('id, name, hex_code, usage'),
       ])
 
+      setGyms(gymData ?? [])
       setWalls(wallData ?? [])
       setColours(colourData ?? [])
       setLoadingOptions(false)
@@ -54,6 +64,17 @@ export default function SettersPage() {
 
     loadOptions()
   }, [])
+
+  // Filter walls by selected gym
+  const filteredWalls = selectedGymId 
+    ? walls.filter(wall => wall.gym === selectedGymId)
+    : []
+
+  // Clear wall selection when gym changes
+  const handleGymSelect = (gymId: number) => {
+    setSelectedGymId(gymId)
+    setForm(prev => ({ ...prev, wall: '' }))
+  }
 
   if (authLoading) {
     return (
@@ -97,6 +118,11 @@ export default function SettersPage() {
     setMessage(null)
     setError(null)
 
+    if (!selectedGymId) {
+      setError('Please select a gym first')
+      return
+    }
+
     if (!form.wall || !form.hold_colour_id || !form.tag_colour_id) {
       setError('Wall, hold colour, and tag colour (grade) are required')
       return
@@ -121,6 +147,7 @@ export default function SettersPage() {
         tag_colour_id: '',
         photo: '',
       })
+      // Keep gym selected, but clear wall
     }
   }
 
@@ -188,6 +215,47 @@ export default function SettersPage() {
             onSubmit={handleSubmit}
             className="space-y-4"
           >
+            <div className="space-y-2">
+              <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                Gym
+              </label>
+              <div className="flex gap-2">
+                {gyms.map(gym => (
+                  <button
+                    key={gym.id}
+                    type="button"
+                    onClick={() => handleGymSelect(gym.id)}
+                    className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition"
+                    style={{
+                      backgroundColor: selectedGymId === gym.id 
+                        ? 'var(--accent)' 
+                        : 'var(--button-secondary-bg)',
+                      color: selectedGymId === gym.id 
+                        ? 'var(--accent-text)' 
+                        : 'var(--button-secondary-text)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: selectedGymId === gym.id 
+                        ? 'var(--accent)' 
+                        : 'var(--border)',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedGymId !== gym.id) {
+                        e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedGymId !== gym.id) {
+                        e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                      }
+                    }}
+                  >
+                    {gym.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 Wall
@@ -195,7 +263,8 @@ export default function SettersPage() {
               <select
                 value={form.wall}
                 onChange={e => handleChange('wall', e.target.value)}
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+                disabled={!selectedGymId || loadingOptions}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: 'var(--input-bg)',
                   color: 'var(--foreground)',
@@ -206,10 +275,12 @@ export default function SettersPage() {
                 onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
                 onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
               >
-                <option value="">Select a wall</option>
-                {walls.map(wall => (
+                <option value="">
+                  {!selectedGymId ? 'Select a gym first' : 'Select a wall'}
+                </option>
+                {filteredWalls.map(wall => (
                   <option key={wall.id} value={wall.id}>
-                    {wall.name} (#{wall.id})
+                    {wall.name}
                   </option>
                 ))}
               </select>
