@@ -9,15 +9,11 @@ import { useUser } from '../../../lib/useUser'
 export default function NewProfilePage() {
   const router = useRouter()
   const { user } = useUser()
-  const { createProfile, refreshProfiles } = useProfile()
+  const { createProfile, refreshProfiles, profiles } = useProfile()
   const [name, setName] = useState('')
-  const [phoneNumber, setPhoneNumber] = useState('')
   const [compCohort, setCompCohort] = useState<'male' | 'female' | 'inclusive'>('inclusive')
   const [ageCategory, setAgeCategory] = useState<'u18' | 'adult' | 'masters' | ''>('')
   const [isJunior, setIsJunior] = useState(false)
-  const [dateOfBirth, setDateOfBirth] = useState('')
-  const [parentName, setParentName] = useState('')
-  const [parentEmail, setParentEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -41,18 +37,8 @@ export default function NewProfilePage() {
       return
     }
 
-    if (!phoneNumber) {
-      setError('Phone number is required')
-      return
-    }
-
     if (!ageCategory) {
       setError('Age category is required')
-      return
-    }
-
-    if (isJunior && !dateOfBirth) {
-      setError('Date of birth is required for junior competitors')
       return
     }
 
@@ -62,11 +48,8 @@ export default function NewProfilePage() {
         comp_cohort: compCohort,
         is_junior: isJunior,
         age_category: ageCategory,
-        parent_email: parentEmail || undefined,
-        parent_name: parentName || undefined,
-        date_of_birth: dateOfBirth || undefined,
-        phone_number: phoneNumber,
         profile_name: name
+        // phone_number not provided - will be inherited from account's first profile
       })
 
       setMessage('Competitor profile created successfully!')
@@ -78,6 +61,9 @@ export default function NewProfilePage() {
       setLoading(false)
     }
   }
+
+  // Get phone number from first profile to show user
+  const accountPhoneNumber = profiles.length > 0 ? profiles[0].phone_number : null
 
   return (
     <main className="flex min-h-[80vh] items-center justify-center px-4 py-6 sm:px-6">
@@ -99,6 +85,21 @@ export default function NewProfilePage() {
             Add a junior competitor or another profile to your account
           </p>
 
+          {accountPhoneNumber && (
+            <div 
+              className="mb-4 rounded-lg px-4 py-2 text-sm"
+              style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                color: '#3b82f6',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'rgba(59, 130, 246, 0.2)'
+              }}
+            >
+              Phone number will be inherited from your account: {accountPhoneNumber}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div>
               <label 
@@ -112,40 +113,6 @@ export default function NewProfilePage() {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Competitor's full name"
-                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
-                style={{
-                  backgroundColor: 'var(--input-bg)',
-                  color: 'var(--foreground)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
-                  minHeight: '44px',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-                disabled={loading}
-                required
-              />
-            </div>
-
-            <div>
-              <label 
-                className="mb-1.5 block text-sm font-medium"
-                style={{ color: 'var(--foreground-secondary)' }}
-              >
-                Phone Number <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={e => setPhoneNumber(e.target.value)}
-                placeholder="+1 (555) 123-4567"
                 className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
                   backgroundColor: 'var(--input-bg)',
@@ -266,111 +233,12 @@ export default function NewProfilePage() {
                   Junior competitor (under 18)
                 </span>
               </label>
+              {isJunior && (
+                <p className="mt-1 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
+                  Parent/guardian contact will use your account email ({user.email})
+                </p>
+              )}
             </div>
-
-            {/* Junior-specific fields */}
-            {isJunior && (
-              <>
-                <div>
-                  <label 
-                    className="mb-1.5 block text-sm font-medium"
-                    style={{ color: 'var(--foreground-secondary)' }}
-                  >
-                    Date of Birth <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={dateOfBirth}
-                    onChange={e => setDateOfBirth(e.target.value)}
-                    className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
-                    style={{
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--foreground)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: 'var(--input-border)',
-                      minHeight: '44px',
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent)'
-                      e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--input-border)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                    disabled={loading}
-                    required={isJunior}
-                  />
-                </div>
-
-                <div>
-                  <label 
-                    className="mb-1.5 block text-sm font-medium"
-                    style={{ color: 'var(--foreground-secondary)' }}
-                  >
-                    Parent/Guardian Name (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={parentName}
-                    onChange={e => setParentName(e.target.value)}
-                    placeholder="Parent or guardian name"
-                    className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
-                    style={{
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--foreground)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: 'var(--input-border)',
-                      minHeight: '44px',
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent)'
-                      e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--input-border)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div>
-                  <label 
-                    className="mb-1.5 block text-sm font-medium"
-                    style={{ color: 'var(--foreground-secondary)' }}
-                  >
-                    Parent/Guardian Email (Optional)
-                  </label>
-                  <input
-                    type="email"
-                    value={parentEmail}
-                    onChange={e => setParentEmail(e.target.value)}
-                    placeholder="parent@example.com"
-                    className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
-                    style={{
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--foreground)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: 'var(--input-border)',
-                      minHeight: '44px',
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent)'
-                      e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--input-border)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                    disabled={loading}
-                  />
-                </div>
-              </>
-            )}
 
             {error && (
               <div 
@@ -434,4 +302,3 @@ export default function NewProfilePage() {
     </main>
   )
 }
-

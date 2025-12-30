@@ -11,6 +11,7 @@ type Profile = {
   is_junior: boolean
   age_category: string | null
   username: string | null
+  phone_number: string | null
   created_at: string
 }
 
@@ -24,11 +25,8 @@ type ProfileContextType = {
     comp_cohort: string
     is_junior?: boolean
     age_category?: string
-    parent_email?: string
-    parent_name?: string
-    date_of_birth?: string
     phone_number?: string
-    profile_name?: string
+    profile_name: string
   }) => Promise<Profile | null>
 }
 
@@ -95,25 +93,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     comp_cohort: string
     is_junior?: boolean
     age_category?: string
-    parent_email?: string
-    parent_name?: string
-    date_of_birth?: string
     phone_number?: string
-    profile_name?: string
+    profile_name: string
   }): Promise<Profile | null> => {
     if (!user) return null
 
     try {
       const { data: profileId, error } = await supabase.rpc('create_user_profile', {
         p_user_id: user.id,
+        p_name: profileData.profile_name,
         p_comp_cohort: profileData.comp_cohort,
-        p_is_junior: profileData.is_junior || false,
         p_age_category: profileData.age_category || null,
-        p_parent_email: profileData.parent_email || null,
-        p_parent_name: profileData.parent_name || null,
-        p_date_of_birth: profileData.date_of_birth || null,
-        p_phone_number: profileData.phone_number || null,
-        p_profile_name: profileData.profile_name || null
+        p_is_junior: profileData.is_junior || false,
+        p_phone_number: profileData.phone_number || null
       })
 
       if (error) throw error
