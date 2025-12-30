@@ -27,12 +27,13 @@ export default function LeaderboardPage() {
       
       // Fetch all ascents with profile data
       // Join profiles using profile_id (the new relationship after refactor)
+      // Must specify the foreign key explicitly since there are multiple relationships
       const { data: ascents, error } = await supabase
         .from('ascents')
         .select(`
           profile_id,
           sent,
-          profiles (
+          profiles!ascents_profile_id_fkey (
             profile_id,
             user_id,
             competitor_number,
