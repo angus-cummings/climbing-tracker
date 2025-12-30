@@ -253,7 +253,8 @@ export default function ClimbsPage() {
   }, {} as Record<number, { wall: any, climbs: any[] }>)
 
   // Sort climbs within each wall group by sector_tag_id
-  const wallGroups: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs).map((group: { wall: any, climbs: any[] }) => {
+  const groupedClimbsArray: Array<{ wall: any, climbs: any[] }> = Object.values(groupedClimbs) as Array<{ wall: any, climbs: any[] }>
+  const wallGroups: Array<{ wall: any, climbs: any[] }> = groupedClimbsArray.map((group) => {
     const sortedClimbs = [...group.climbs].sort((a, b) => {
       // Sort by sector_tag_id if available, otherwise by id
       const aTag = a.sector_tag_id ?? a.id
