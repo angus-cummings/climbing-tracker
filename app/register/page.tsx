@@ -25,7 +25,7 @@ export default function RegisterPage() {
   const generatePlaceholderEmail = (): string => {
     const timestamp = Date.now()
     const random = Math.random().toString(36).substring(2, 9)
-    return `junior-${timestamp}-${random}@boulder.local`
+    return `junior-${timestamp}-${random}@boulder.example.com`
   }
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -77,7 +77,7 @@ export default function RegisterPage() {
     
     // For placeholder emails, Supabase should be configured to auto-confirm
     // See migrations/add_junior_support.sql for configuration instructions
-    const isPlaceholderEmail = emailToUse.endsWith('@boulder.local')
+    const isPlaceholderEmail = emailToUse.endsWith('@boulder.example.com')
     
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: emailToUse,
