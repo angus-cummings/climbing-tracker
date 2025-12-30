@@ -12,9 +12,25 @@ export function ProfileSelector() {
     return null
   }
 
-  // Only show selector if user has more than one profile
+  // If only one profile, just show a link to add more
   if (profiles.length === 1) {
-    return null
+    return (
+      <Link
+        href="/profiles/new"
+        className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
+        style={{
+          backgroundColor: 'var(--button-secondary-bg)',
+          color: 'var(--button-secondary-text)',
+          borderWidth: '1px',
+          borderStyle: 'solid',
+          borderColor: 'var(--border)',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'}
+      >
+        + Add Competitor
+      </Link>
+    )
   }
 
   return (
