@@ -5,6 +5,7 @@
 import './globals.css'
 import { Header } from './Header'
 import { ThemeProvider } from '../lib/ThemeContext'
+import { ProfileProvider } from '../lib/ProfileContext'
 
 export const metadata = {
   title: 'Rock It Summer Sector Series',
@@ -16,10 +17,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
         <ThemeProvider>
-          <div className="max-w-6xl mx-auto p-6">
-            <Header />
-            {children}
-          </div>
+          <ProfileProvider>
+            <div className="max-w-6xl mx-auto p-6">
+              <Header />
+              {children}
+            </div>
+          </ProfileProvider>
         </ThemeProvider>
       </body>
     </html>

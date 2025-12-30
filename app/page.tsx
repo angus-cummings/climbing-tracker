@@ -59,13 +59,13 @@ export default function LoginPage() {
                 className="mb-1.5 block text-sm font-medium"
                 style={{ color: 'var(--foreground-secondary)' }}
               >
-                Email or Account ID
+                Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com or junior-account-id@boulder.example.com"
+                placeholder="you@example.com"
                 className="w-full rounded-lg px-4 py-2.5 outline-none transition"
                 style={{
                   backgroundColor: 'var(--input-bg)',
@@ -84,9 +84,6 @@ export default function LoginPage() {
                 }}
                 disabled={loading}
               />
-              <p className="mt-1 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-                Junior accounts: Use the account ID provided during registration (ends with @boulder.example.com)
-              </p>
             </div>
 
             <div>

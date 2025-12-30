@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/useUser'
 import { useTheme } from '../lib/ThemeContext'
+import { ProfileSelector } from '../components/ProfileSelector'
 
 export function Header() {
   const { user, loading } = useUser()
@@ -48,6 +49,7 @@ export function Header() {
       <nav className="flex items-center gap-4 text-sm">
         {!loading && user && (
           <>
+            <ProfileSelector />
             <Link 
               href="/climbs" 
               className="font-medium transition-colors"
