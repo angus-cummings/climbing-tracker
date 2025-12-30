@@ -32,7 +32,7 @@ export default function LeaderboardPage() {
         .select(`
           profile_id,
           sent,
-          profiles!inner (
+          profiles (
             profile_id,
             user_id,
             competitor_number,
@@ -48,16 +48,28 @@ export default function LeaderboardPage() {
         return
       }
 
+      // Debug: log what we got
+      console.log('Ascents fetched:', ascents?.length || 0)
+      if (ascents && ascents.length > 0) {
+        console.log('Sample ascent:', ascents[0])
+        console.log('Sample profile:', ascents[0]?.profiles)
+      }
+
       // Aggregate sends by profile (since multiple profiles can belong to one user)
       const statsMap = new Map<string, CompetitorStats>()
       
       ascents?.forEach((ascent: any) => {
         const profileId = ascent.profile_id
-        const profile = ascent.profiles
-        if (!profile) return // Skip if profile data is missing
+        // Handle both array and object responses from Supabase
+        const profile = Array.isArray(ascent.profiles) ? ascent.profiles[0] : ascent.profiles
+        if (!profile || !profileId) {
+          console.warn('Missing profile data for ascent:', ascent)
+          return // Skip if profile data is missing
+        }
         
         const userId = profile.user_id
-        const cohort = profile.comp_cohort || 'inclusive'
+        // Normalize cohort to lowercase for consistent comparison
+        const cohort = (profile.comp_cohort || 'inclusive').toLowerCase()
         const competitorNumber = profile.competitor_number || null
         
         if (statsMap.has(profileId)) {
@@ -74,6 +86,8 @@ export default function LeaderboardPage() {
         }
       })
 
+      console.log('Competitors aggregated:', statsMap.size)
+
       // Convert to array and sort by total sends (descending)
       const competitorsList = Array.from(statsMap.values()).sort(
         (a, b) => b.total_sends - a.total_sends
@@ -86,15 +100,16 @@ export default function LeaderboardPage() {
     fetchLeaderboardData()
   }, [user])
 
-  // Apply cohort filter
+  // Apply cohort filter (case-insensitive)
   useEffect(() => {
+    let filtered: CompetitorStats[]
     if (cohortFilter === 'all') {
-      setFilteredCompetitors(competitors)
+      filtered = competitors
     } else {
-      setFilteredCompetitors(
-        competitors.filter(c => c.comp_cohort === cohortFilter)
-      )
+      filtered = competitors.filter(c => c.comp_cohort?.toLowerCase() === cohortFilter.toLowerCase())
     }
+    setFilteredCompetitors(filtered)
+    console.log('Filtered competitors:', filtered.length, 'for cohort:', cohortFilter, 'out of', competitors.length, 'total')
   }, [competitors, cohortFilter])
 
   if (loading) {
