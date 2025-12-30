@@ -12,24 +12,38 @@ export function ProfileSelector() {
     return null
   }
 
-  // If only one profile, just show a link to add more
+  // If only one profile, show the competitor number with an option to add more
   if (profiles.length === 1) {
     return (
-      <Link
-        href="/profiles/new"
-        className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
-        style={{
-          backgroundColor: 'var(--button-secondary-bg)',
-          color: 'var(--button-secondary-text)',
-          borderWidth: '1px',
-          borderStyle: 'solid',
-          borderColor: 'var(--border)',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'}
-      >
-        + Add Competitor
-      </Link>
+      <div className="flex items-center gap-2">
+        <span 
+          className="rounded-lg px-3 py-1.5 text-sm font-medium"
+          style={{
+            backgroundColor: 'var(--button-secondary-bg)',
+            color: 'var(--button-secondary-text)',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderColor: 'var(--border)',
+          }}
+        >
+          Competitor #{selectedProfile?.competitor_number}
+        </span>
+        <Link
+          href="/profiles/new"
+          className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
+          style={{
+            backgroundColor: 'var(--button-secondary-bg)',
+            color: 'var(--button-secondary-text)',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderColor: 'var(--border)',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'}
+        >
+          + Add Competitor
+        </Link>
+      </div>
     )
   }
 

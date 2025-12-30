@@ -79,16 +79,19 @@ export function Header() {
             >
               Leaderboard
             </Link>
-            <Link 
-              href="/anonymous" 
-              className="font-medium transition-colors"
-              style={{ color: 'var(--foreground-secondary)' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
-            >
-              Record Send
-            </Link>
           </>
+        )}
+        
+        {!loading && !user && (
+          <Link 
+            href="/anonymous" 
+            className="font-medium transition-colors"
+            style={{ color: 'var(--foreground-secondary)' }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+          >
+            Record Send
+          </Link>
         )}
         
         {/* Theme Toggle Button */}
