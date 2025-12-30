@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [compCohort, setCompCohort] = useState<'male' | 'female' | 'inclusive'>('inclusive')
+  const [ageCategory, setAgeCategory] = useState<'u18' | 'adult' | 'masters' | ''>('')
   const [isJunior, setIsJunior] = useState(false)
   const [parentEmail, setParentEmail] = useState('')
   const [parentName, setParentName] = useState('')
@@ -50,6 +51,11 @@ export default function RegisterPage() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
+      return
+    }
+
+    if (!ageCategory) {
+      setError('Please select an age category')
       return
     }
 
@@ -99,7 +105,8 @@ export default function RegisterPage() {
       const profileData: any = {
         p_user_id: data.user.id,
         p_comp_cohort: compCohort,
-        p_is_junior: isJunior
+        p_is_junior: isJunior,
+        p_age_category: ageCategory
       }
 
       // Add optional phone number if provided
@@ -441,6 +448,46 @@ export default function RegisterPage() {
                 </div>
               </>
             )}
+
+            <div>
+              <label 
+                className="mb-1.5 block text-sm font-medium"
+                style={{ color: 'var(--foreground-secondary)' }}
+              >
+                Age Category <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <select
+                value={ageCategory}
+                onChange={e => setAgeCategory(e.target.value as 'u18' | 'adult' | 'masters')}
+                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--foreground)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--input-border)',
+                  minHeight: '44px',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent)'
+                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--input-border)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+                disabled={loading}
+                required
+              >
+                <option value="">Select age category</option>
+                <option value="u18">Under 18 (U18)</option>
+                <option value="adult">18+ (Adults)</option>
+                <option value="masters">40+ (Masters)</option>
+              </select>
+              <p className="mt-1 text-xs sm:text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
+                Select your age category for competition classification
+              </p>
+            </div>
 
             <div>
               <label 

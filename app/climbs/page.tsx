@@ -5,7 +5,7 @@
 // app/climbs/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
@@ -32,6 +32,7 @@ export default function ClimbsPage() {
   const [colours, setColours] = useState<Colour[]>([])
   const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedClimbs, setSelectedClimbs] = useState<Set<string>>(new Set())
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false) // Closed by default
@@ -129,6 +130,114 @@ export default function ClimbsPage() {
 
     setFilteredClimbs(filtered)
   }, [climbs, selectedWall, selectedHoldColour, selectedTagColour, sentFilter])
+
+  // Update a climb's sent status locally without reloading
+  const updateClimbSentStatus = useCallback((climbId: string, sent: boolean) => {
+    setClimbs(prevClimbs => {
+      return prevClimbs.map(climb => {
+        if (climb.id === climbId) {
+          const existingAscent = climb.ascents?.[0]
+          if (sent) {
+            // Mark as sent - add or update ascent
+            if (existingAscent) {
+              return {
+                ...climb,
+                ascents: [{ ...existingAscent, sent: true }]
+              }
+            } else {
+              return {
+                ...climb,
+                ascents: [{
+                  id: '', // Temporary ID, will be updated on next fetch
+                  climb_id: climbId,
+                  user_id: user?.id || '',
+                  sent: true
+                }]
+              }
+            }
+          } else {
+            // Unmark as sent - remove or update ascent
+            if (existingAscent) {
+              return {
+                ...climb,
+                ascents: [{ ...existingAscent, sent: false }]
+              }
+            }
+          }
+        }
+        return climb
+      })
+    })
+  }, [user])
+
+  // Mark single climb as sent
+  const markClimbAsSent = useCallback(async (climbId: string) => {
+    if (!user) return
+    
+    const { error } = await supabase.from('ascents').upsert({
+      climb_id: climbId,
+      user_id: user.id,
+      sent: true
+    })
+    
+    if (!error) {
+      updateClimbSentStatus(climbId, true)
+    }
+  }, [user, updateClimbSentStatus])
+
+  // Mark multiple climbs as sent
+  const markClimbsAsSent = useCallback(async (climbIds: string[]) => {
+    if (!user || climbIds.length === 0) return
+    
+    const ascentsToUpsert = climbIds.map(climbId => ({
+      climb_id: climbId,
+      user_id: user.id,
+      sent: true
+    }))
+    
+    const { error } = await supabase.from('ascents').upsert(ascentsToUpsert)
+    
+    if (!error) {
+      climbIds.forEach(climbId => updateClimbSentStatus(climbId, true))
+      setSelectedClimbs(new Set()) // Clear selection after successful update
+    }
+  }, [user, updateClimbSentStatus])
+
+  // Toggle climb selection
+  const toggleClimbSelection = useCallback((climbId: string) => {
+    setSelectedClimbs(prev => {
+      const next = new Set(prev)
+      if (next.has(climbId)) {
+        next.delete(climbId)
+      } else {
+        next.add(climbId)
+      }
+      return next
+    })
+  }, [])
+
+  // Select/deselect all visible climbs
+  const toggleSelectAll = useCallback(() => {
+    const unsentClimbIds = filteredClimbs
+      .filter(climb => !climb.ascents?.[0]?.sent)
+      .map(climb => climb.id)
+    
+    if (unsentClimbIds.every(id => selectedClimbs.has(id))) {
+      // Deselect all
+      setSelectedClimbs(prev => {
+        const next = new Set(prev)
+        unsentClimbIds.forEach(id => next.delete(id))
+        return next
+      })
+    } else {
+      // Select all unsent
+      setSelectedClimbs(prev => {
+        const next = new Set(prev)
+        unsentClimbIds.forEach(id => next.add(id))
+        return next
+      })
+    }
+  }, [filteredClimbs, selectedClimbs])
 
   // Group climbs by wall and sort by sector_tag_id
   const groupedClimbs = filteredClimbs.reduce((acc, climb) => {
@@ -437,6 +546,52 @@ export default function ClimbsPage() {
         )}
       </div>
 
+      {/* Bulk Actions Bar */}
+      {filteredClimbs.length > 0 && selectedClimbs.size > 0 && (
+        <div 
+          className="mb-4 rounded-2xl p-4 flex items-center justify-between"
+          style={{
+            backgroundColor: 'var(--card-bg)',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderColor: 'var(--card-border)',
+          }}
+        >
+          <div className="text-sm" style={{ color: 'var(--foreground)' }}>
+            {selectedClimbs.size} {selectedClimbs.size === 1 ? 'climb' : 'climbs'} selected
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedClimbs(new Set())}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap"
+              style={{
+                backgroundColor: 'var(--button-secondary-bg)',
+                color: 'var(--button-secondary-text)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'var(--border)',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'}
+            >
+              Clear selection
+            </button>
+            <button
+              onClick={() => markClimbsAsSent(Array.from(selectedClimbs))}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap"
+              style={{
+                backgroundColor: 'var(--accent)',
+                color: 'var(--accent-text)',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--accent)'}
+            >
+              Mark {selectedClimbs.size === 1 ? 'as sent' : 'all as sent'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Climbs Grid */}
       {filteredClimbs.length === 0 ? (
         <div 
@@ -461,6 +616,9 @@ export default function ClimbsPage() {
               userRole={userRole} 
               showPhoto={showPhotos}
               onImageClick={setSelectedImage}
+              selectedClimbs={selectedClimbs}
+              onToggleSelection={toggleClimbSelection}
+              onMarkAsSent={markClimbAsSent}
             />
           ))}
         </div>
@@ -476,7 +634,7 @@ export default function ClimbsPage() {
   )
 }
 
-function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick }: any) {
+function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selectedClimbs, onToggleSelection, onMarkAsSent }: any) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -539,6 +697,9 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick }: any
               userRole={userRole} 
               showPhoto={showPhoto}
               onImageClick={onImageClick}
+              isSelected={selectedClimbs?.has(climb.id)}
+              onToggleSelection={onToggleSelection}
+              onMarkAsSent={onMarkAsSent}
             />
           ))}
         </div>
@@ -546,27 +707,42 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick }: any
     </div>
   )
 }
-function ClimbRow({ climb, user, userRole, showPhoto, onImageClick }: any) {
+function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, isSelected, onToggleSelection, onMarkAsSent }: any) {
   const router = useRouter()
   const ascent = climb.ascents?.[0]
   const canEdit = userRole === 'setter' || userRole === 'admin'
+  const isSent = ascent?.sent
 
-  const logSend = async () => {
-    console.log('user id', user.id)
-    await supabase.from('ascents').upsert({
-      climb_id: climb.id,
-      user_id: user.id,
-      sent: true
-    })
-    window.location.reload()
+  const handleSend = async () => {
+    if (onMarkAsSent) {
+      await onMarkAsSent(climb.id)
+    }
   }
 
   const handleEdit = () => {
     router.push(`/climbs/${climb.id}/edit`)
   }
 
+  const handleCheckboxChange = () => {
+    if (onToggleSelection && !isSent) {
+      onToggleSelection(climb.id)
+    }
+  }
+
   return (
     <div className="p-4 flex items-center gap-4">
+      {/* Checkbox for selection */}
+      <div className="w-4 flex-shrink-0">
+        {!isSent && (
+          <input
+            type="checkbox"
+            checked={isSelected || false}
+            onChange={handleCheckboxChange}
+            className="h-4 w-4 rounded cursor-pointer"
+            style={{ accentColor: 'var(--accent)' }}
+          />
+        )}
+      </div>
       {/* Photo */}
       {showPhoto && climb.photo && (
         <div 
@@ -618,11 +794,11 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick }: any) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {ascent?.sent ? (
+        {isSent ? (
           <span className="text-sm" style={{ color: 'var(--accent)', fontWeight: 500 }}>✓ Sent</span>
         ) : (
           <button
-            onClick={logSend}
+            onClick={handleSend}
             className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap"
             style={{
               backgroundColor: 'var(--accent)',
