@@ -34,7 +34,6 @@ export default function ClimbsPage() {
   const [colours, setColours] = useState<Colour[]>([])
   const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [selectedClimbs, setSelectedClimbs] = useState<Set<string>>(new Set())
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false) // Closed by default
@@ -188,37 +187,6 @@ export default function ClimbsPage() {
     }
   }, [selectedProfile, user, updateClimbSentStatus])
 
-  // Mark multiple climbs as sent
-  const markClimbsAsSent = useCallback(async (climbIds: string[]) => {
-    if (!selectedProfile || !user || climbIds.length === 0) return
-    
-    const ascentsToUpsert = climbIds.map(climbId => ({
-      climb_id: climbId,
-      profile_id: selectedProfile.profile_id,
-      user_id: user.id, // Keep for backward compatibility
-      sent: true
-    }))
-    
-    const { error } = await supabase.from('ascents').upsert(ascentsToUpsert)
-    
-    if (!error) {
-      climbIds.forEach(climbId => updateClimbSentStatus(climbId, true))
-      setSelectedClimbs(new Set()) // Clear selection after successful update
-    }
-  }, [selectedProfile, user, updateClimbSentStatus])
-
-  // Toggle climb selection
-  const toggleClimbSelection = useCallback((climbId: string) => {
-    setSelectedClimbs(prev => {
-      const next = new Set(prev)
-      if (next.has(climbId)) {
-        next.delete(climbId)
-      } else {
-        next.add(climbId)
-      }
-      return next
-    })
-  }, [])
 
   // Group climbs by wall and sort by sector_tag_id
   const groupedClimbs = filteredClimbs.reduce((acc, climb) => {
@@ -527,52 +495,6 @@ export default function ClimbsPage() {
         )}
       </div>
 
-      {/* Bulk Actions Bar */}
-      {filteredClimbs.length > 0 && selectedClimbs.size > 0 && (
-        <div 
-          className="mb-4 rounded-2xl p-4 flex items-center justify-between"
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            borderWidth: '1px',
-            borderStyle: 'solid',
-            borderColor: 'var(--card-border)',
-          }}
-        >
-          <div className="text-sm" style={{ color: 'var(--foreground)' }}>
-            {selectedClimbs.size} {selectedClimbs.size === 1 ? 'climb' : 'climbs'} selected
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelectedClimbs(new Set())}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--button-secondary-bg)',
-                color: 'var(--button-secondary-text)',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: 'var(--border)',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'}
-            >
-              Clear selection
-            </button>
-            <button
-              onClick={() => markClimbsAsSent(Array.from(selectedClimbs))}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--accent)',
-                color: 'var(--accent-text)',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--accent)'}
-            >
-              Mark {selectedClimbs.size === 1 ? 'as sent' : 'all as sent'}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Climbs Grid */}
       {filteredClimbs.length === 0 ? (
         <div 
@@ -598,8 +520,6 @@ export default function ClimbsPage() {
               showPhoto={showPhotos}
               onImageClick={setSelectedImage}
               selectedProfile={selectedProfile}
-              selectedClimbs={selectedClimbs}
-              onToggleSelection={toggleClimbSelection}
               onMarkAsSent={markClimbAsSent}
             />
           ))}
@@ -616,7 +536,7 @@ export default function ClimbsPage() {
   )
 }
 
-function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selectedProfile, selectedClimbs, onToggleSelection, onMarkAsSent }: any) {
+function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selectedProfile, onMarkAsSent }: any) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -680,8 +600,6 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selec
               showPhoto={showPhoto}
               onImageClick={onImageClick}
               selectedProfile={selectedProfile}
-              isSelected={selectedClimbs?.has(climb.id)}
-              onToggleSelection={onToggleSelection}
               onMarkAsSent={onMarkAsSent}
             />
           ))}
@@ -690,7 +608,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selec
     </div>
   )
 }
-function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProfile, isSelected, onToggleSelection, onMarkAsSent }: any) {
+function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProfile, onMarkAsSent }: any) {
   const router = useRouter()
   const ascent = climb.ascents?.[0]
   const canEdit = userRole === 'setter' || userRole === 'admin'
@@ -706,26 +624,8 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
     router.push(`/climbs/${climb.id}/edit`)
   }
 
-  const handleCheckboxChange = () => {
-    if (onToggleSelection && !isSent) {
-      onToggleSelection(climb.id)
-    }
-  }
-
   return (
     <div className="p-4 flex items-center gap-4">
-      {/* Checkbox for selection */}
-      <div className="w-4 flex-shrink-0">
-        {!isSent && (
-          <input
-            type="checkbox"
-            checked={isSelected || false}
-            onChange={handleCheckboxChange}
-            className="h-4 w-4 rounded cursor-pointer"
-            style={{ accentColor: 'var(--accent)' }}
-          />
-        )}
-      </div>
       {/* Photo */}
       {showPhoto && climb.photo && (
         <div 
