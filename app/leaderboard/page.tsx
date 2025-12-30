@@ -7,6 +7,7 @@ import { useUser } from '../../lib/useUser'
 type CompetitorStats = {
   competitor_number: number | null
   user_id: string
+  profile_id: string
   total_sends: number
   comp_cohort: string
 }
@@ -25,18 +26,21 @@ export default function LeaderboardPage() {
       setLoadingData(true)
       
       // Fetch all ascents with profile data
+      // Join profiles using profile_id (the new relationship after refactor)
       const { data: ascents, error } = await supabase
         .from('ascents')
         .select(`
-          user_id,
+          profile_id,
           sent,
           profiles!inner (
+            profile_id,
             user_id,
             competitor_number,
             comp_cohort
           )
         `)
         .eq('sent', true)
+        .not('profile_id', 'is', null)
 
       if (error) {
         console.error('Error fetching leaderboard data:', error)
@@ -44,21 +48,26 @@ export default function LeaderboardPage() {
         return
       }
 
-      // Aggregate sends by user
+      // Aggregate sends by profile (since multiple profiles can belong to one user)
       const statsMap = new Map<string, CompetitorStats>()
       
       ascents?.forEach((ascent: any) => {
-        const userId = ascent.user_id
-        const cohort = ascent.profiles?.comp_cohort || 'inclusive'
-        const competitorNumber = ascent.profiles?.competitor_number || null
+        const profileId = ascent.profile_id
+        const profile = ascent.profiles
+        if (!profile) return // Skip if profile data is missing
         
-        if (statsMap.has(userId)) {
-          const stats = statsMap.get(userId)!
+        const userId = profile.user_id
+        const cohort = profile.comp_cohort || 'inclusive'
+        const competitorNumber = profile.competitor_number || null
+        
+        if (statsMap.has(profileId)) {
+          const stats = statsMap.get(profileId)!
           stats.total_sends += 1
         } else {
-          statsMap.set(userId, {
+          statsMap.set(profileId, {
             competitor_number: competitorNumber,
             user_id: userId,
+            profile_id: profileId,
             total_sends: 1,
             comp_cohort: cohort
           })
@@ -228,7 +237,7 @@ export default function LeaderboardPage() {
                   const isCurrentUser = competitor.user_id === user.id
                   return (
                     <tr
-                      key={competitor.user_id}
+                      key={competitor.profile_id}
                       className="transition"
                       style={{
                         backgroundColor: isCurrentUser 
@@ -330,7 +339,10 @@ export default function LeaderboardPage() {
                 Your Rank
               </div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>
-                {filteredCompetitors.findIndex(c => c.user_id === user.id) + 1 || '-'}
+                {(() => {
+                  const userRank = filteredCompetitors.findIndex(c => c.user_id === user.id)
+                  return userRank >= 0 ? userRank + 1 : '-'
+                })()}
               </div>
             </div>
             <div>
@@ -338,7 +350,7 @@ export default function LeaderboardPage() {
                 Your Total Sends
               </div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>
-                {filteredCompetitors.find(c => c.user_id === user.id)?.total_sends || 0}
+                {filteredCompetitors.find(c => c.user_id === user.id)?.total_sends ?? 0}
               </div>
             </div>
             <div>
