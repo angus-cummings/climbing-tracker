@@ -12,13 +12,9 @@ export function ProfileSelector() {
     return null
   }
 
+  // Only show selector if user has more than one profile
   if (profiles.length === 1) {
-    // Show current profile info if only one
-    return (
-      <div className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-        Competitor #{selectedProfile?.competitor_number}
-      </div>
-    )
+    return null
   }
 
   return (

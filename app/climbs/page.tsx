@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
+import { useProfile } from '../../lib/ProfileContext'
 import { ImageModal } from '../../components/ImageModal'
 
 type Wall = {
@@ -26,6 +27,7 @@ type Colour = {
 
 export default function ClimbsPage() {
   const { user, loading } = useUser()
+  const { selectedProfile } = useProfile()
   const [climbs, setClimbs] = useState<any[]>([])
   const [filteredClimbs, setFilteredClimbs] = useState<any[]>([])
   const [walls, setWalls] = useState<Wall[]>([])
@@ -42,7 +44,7 @@ export default function ClimbsPage() {
   const [sentFilter, setSentFilter] = useState<'all' | 'sent' | 'unsent'>('all')
 
   useEffect(() => {
-    if (!user) return
+    if (!user || !selectedProfile) return
     
     // Fetch all climbs
     Promise.all([
@@ -68,18 +70,18 @@ export default function ClimbsPage() {
           )
         `)
         .order('sector_tag_id', { ascending: true }),
-      // Fetch current user's ascents separately
+      // Fetch current profile's ascents separately
       supabase
         .from('ascents')
-        .select('id, climb_id, sent, user_id')
-        .eq('user_id', user.id)
-    ]).then(([{ data: climbsData }, { data: userAscents }]) => {
-      // Merge ascents into climbs, filtering to only show current user's ascents
-      const climbsWithUserAscents = (climbsData || []).map(climb => ({
+        .select('id, climb_id, sent, profile_id')
+        .eq('profile_id', selectedProfile.profile_id)
+    ]).then(([{ data: climbsData }, { data: profileAscents }]) => {
+      // Merge ascents into climbs, filtering to only show current profile's ascents
+      const climbsWithProfileAscents = (climbsData || []).map(climb => ({
         ...climb,
-        ascents: (userAscents || []).filter(ascent => ascent.climb_id === climb.id)
+        ascents: (profileAscents || []).filter(ascent => ascent.climb_id === climb.id)
       }))
-      setClimbs(climbsWithUserAscents)
+      setClimbs(climbsWithProfileAscents)
     })
     
     // Fetch user role
@@ -99,7 +101,7 @@ export default function ClimbsPage() {
       setColours(colourData ?? [])
     })
 
-  }, [user])
+  }, [user, selectedProfile])
 
   // Apply filters whenever climbs or filter settings change
   useEffect(() => {
@@ -172,7 +174,7 @@ export default function ClimbsPage() {
     }
   })
 
-  if (!user) return <p>Loading…</p>
+  if (!user || !selectedProfile) return <p>Loading…</p>
 
   return (
     <main style={{ padding: 32 }}>
@@ -461,6 +463,7 @@ export default function ClimbsPage() {
               userRole={userRole} 
               showPhoto={showPhotos}
               onImageClick={setSelectedImage}
+              selectedProfile={selectedProfile}
             />
           ))}
         </div>
@@ -476,7 +479,7 @@ export default function ClimbsPage() {
   )
 }
 
-function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick }: any) {
+function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selectedProfile }: any) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -539,6 +542,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick }: any
               userRole={userRole} 
               showPhoto={showPhoto}
               onImageClick={onImageClick}
+              selectedProfile={selectedProfile}
             />
           ))}
         </div>
@@ -546,16 +550,17 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick }: any
     </div>
   )
 }
-function ClimbRow({ climb, user, userRole, showPhoto, onImageClick }: any) {
+function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProfile }: any) {
   const router = useRouter()
   const ascent = climb.ascents?.[0]
   const canEdit = userRole === 'setter' || userRole === 'admin'
 
   const logSend = async () => {
-    console.log('user id', user.id)
+    if (!selectedProfile) return
     await supabase.from('ascents').upsert({
       climb_id: climb.id,
-      user_id: user.id,
+      profile_id: selectedProfile.profile_id,
+      user_id: user.id, // Keep for backward compatibility
       sent: true
     })
     window.location.reload()

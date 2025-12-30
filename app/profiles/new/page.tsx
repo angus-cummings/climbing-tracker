@@ -3,32 +3,39 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '../../lib/supabase'
+import { useProfile } from '../../../lib/ProfileContext'
+import { useUser } from '../../../lib/useUser'
 
-export default function RegisterPage() {
+export default function NewProfilePage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const { user } = useUser()
+  const { createProfile, refreshProfiles } = useProfile()
   const [name, setName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [compCohort, setCompCohort] = useState<'male' | 'female' | 'inclusive'>('inclusive')
   const [ageCategory, setAgeCategory] = useState<'u18' | 'adult' | 'masters' | ''>('')
+  const [isJunior, setIsJunior] = useState(false)
+  const [dateOfBirth, setDateOfBirth] = useState('')
+  const [parentName, setParentName] = useState('')
+  const [parentEmail, setParentEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  if (!user) {
+    return (
+      <main className="flex min-h-[80vh] items-center justify-center">
+        <p style={{ color: 'var(--foreground-secondary)' }}>Please sign in to add a competitor profile.</p>
+      </main>
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setMessage(null)
 
     // Validation
-    if (!email || !password) {
-      setError('Email and password are required')
-      return
-    }
-
     if (!name) {
       setError('Name is required')
       return
@@ -44,64 +51,30 @@ export default function RegisterPage() {
       return
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (isJunior && !dateOfBirth) {
+      setError('Date of birth is required for junior competitors')
       return
     }
 
     setLoading(true)
-    const redirectTo = `${window.location.origin}/auth/callback?next=/climbs`
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectTo,
-      },
-    })
-
-    if (signUpError) {
-      setLoading(false)
-      setError(signUpError.message)
-      return
-    }
-
-    if (data.user) {
-      // Check if email confirmation is required
-      if (data.user.identities?.length === 0) {
-        setLoading(false)
-        setError('This email is already registered. Please sign in instead.')
-        return
-      }
-
-      // Create profile with all required fields
-      const { error: profileError } = await supabase.rpc('create_user_profile', {
-        p_user_id: data.user.id,
-        p_name: name,
-        p_phone_number: phoneNumber,
-        p_comp_cohort: compCohort,
-        p_age_category: ageCategory,
+    try {
+      await createProfile({
+        comp_cohort: compCohort,
+        is_junior: isJunior,
+        age_category: ageCategory,
+        parent_email: parentEmail || undefined,
+        parent_name: parentName || undefined,
+        date_of_birth: dateOfBirth || undefined,
+        phone_number: phoneNumber,
+        profile_name: name
       })
 
-      setLoading(false)
-
-      if (profileError) {
-        setError(`Account created but profile setup failed: ${profileError.message}`)
-        return
-      }
-
-      // Check if email confirmation is required
-      if (!data.session) {
-        router.push(`/confirm-email?email=${encodeURIComponent(email)}`)
-      } else {
-        setMessage('Registration successful! Redirecting to climbs...')
-        setTimeout(() => router.push('/climbs'), 1500)
-      }
-    } else {
+      setMessage('Competitor profile created successfully!')
+      await refreshProfiles()
+      setTimeout(() => router.push('/climbs'), 1500)
+    } catch (err: any) {
+      setError(err.message || 'Failed to create competitor profile')
+    } finally {
       setLoading(false)
     }
   }
@@ -120,115 +93,13 @@ export default function RegisterPage() {
           }}
         >
           <h1 className="mb-2 text-2xl sm:text-3xl font-bold" style={{ color: 'var(--foreground)' }}>
-            Create Account
+            Add Competitor Profile
           </h1>
           <p className="mb-4 sm:mb-6 text-sm sm:text-base" style={{ color: 'var(--foreground-secondary)' }}>
-            Join the Summer Sector Series
+            Add a junior competitor or another profile to your account
           </p>
 
-          <form onSubmit={handleSignUp} className="space-y-3 sm:space-y-4">
-            <div>
-              <label 
-                className="mb-1.5 block text-sm font-medium"
-                style={{ color: 'var(--foreground-secondary)' }}
-              >
-                Email <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
-                style={{
-                  backgroundColor: 'var(--input-bg)',
-                  color: 'var(--foreground)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
-                  minHeight: '44px',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-                disabled={loading}
-                required
-              />
-            </div>
-
-            <div>
-              <label 
-                className="mb-1.5 block text-sm font-medium"
-                style={{ color: 'var(--foreground-secondary)' }}
-              >
-                Password <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
-                style={{
-                  backgroundColor: 'var(--input-bg)',
-                  color: 'var(--foreground)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
-                  minHeight: '44px',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-                disabled={loading}
-                required
-              />
-            </div>
-
-            <div>
-              <label 
-                className="mb-1.5 block text-sm font-medium"
-                style={{ color: 'var(--foreground-secondary)' }}
-              >
-                Confirm Password <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter your password"
-                className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
-                style={{
-                  backgroundColor: 'var(--input-bg)',
-                  color: 'var(--foreground)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
-                  minHeight: '44px',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-                disabled={loading}
-                required
-              />
-            </div>
-
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div>
               <label 
                 className="mb-1.5 block text-sm font-medium"
@@ -240,7 +111,7 @@ export default function RegisterPage() {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Your full name"
+                placeholder="Competitor's full name"
                 className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
                   backgroundColor: 'var(--input-bg)',
@@ -331,9 +202,6 @@ export default function RegisterPage() {
                 <option value="female">Female</option>
                 <option value="inclusive">Inclusive</option>
               </select>
-              <p className="mt-1 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-                Select your gender category for competition
-              </p>
             </div>
 
             <div>
@@ -371,10 +239,138 @@ export default function RegisterPage() {
                 <option value="adult">18+ (Adults)</option>
                 <option value="masters">40+ (Masters)</option>
               </select>
-              <p className="mt-1 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-                Select your age category for competition classification
-              </p>
             </div>
+
+            {/* Junior Account Toggle */}
+            <div>
+              <label 
+                className="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition"
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--input-border)',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--input-bg)'}
+              >
+                <input
+                  type="checkbox"
+                  checked={isJunior}
+                  onChange={e => setIsJunior(e.target.checked)}
+                  className="h-4 w-4 rounded"
+                  style={{ accentColor: 'var(--accent)' }}
+                  disabled={loading}
+                />
+                <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                  Junior competitor (under 18)
+                </span>
+              </label>
+            </div>
+
+            {/* Junior-specific fields */}
+            {isJunior && (
+              <>
+                <div>
+                  <label 
+                    className="mb-1.5 block text-sm font-medium"
+                    style={{ color: 'var(--foreground-secondary)' }}
+                  >
+                    Date of Birth <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={e => setDateOfBirth(e.target.value)}
+                    className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
+                    style={{
+                      backgroundColor: 'var(--input-bg)',
+                      color: 'var(--foreground)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: 'var(--input-border)',
+                      minHeight: '44px',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent)'
+                      e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--input-border)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                    disabled={loading}
+                    required={isJunior}
+                  />
+                </div>
+
+                <div>
+                  <label 
+                    className="mb-1.5 block text-sm font-medium"
+                    style={{ color: 'var(--foreground-secondary)' }}
+                  >
+                    Parent/Guardian Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={parentName}
+                    onChange={e => setParentName(e.target.value)}
+                    placeholder="Parent or guardian name"
+                    className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
+                    style={{
+                      backgroundColor: 'var(--input-bg)',
+                      color: 'var(--foreground)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: 'var(--input-border)',
+                      minHeight: '44px',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent)'
+                      e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--input-border)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <label 
+                    className="mb-1.5 block text-sm font-medium"
+                    style={{ color: 'var(--foreground-secondary)' }}
+                  >
+                    Parent/Guardian Email (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    value={parentEmail}
+                    onChange={e => setParentEmail(e.target.value)}
+                    placeholder="parent@example.com"
+                    className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
+                    style={{
+                      backgroundColor: 'var(--input-bg)',
+                      color: 'var(--foreground)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: 'var(--input-border)',
+                      minHeight: '44px',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent)'
+                      e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--input-border)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                    disabled={loading}
+                  />
+                </div>
+              </>
+            )}
 
             {error && (
               <div 
@@ -418,20 +414,19 @@ export default function RegisterPage() {
               onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = 'var(--accent-hover)')}
               onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = 'var(--accent)')}
             >
-              {loading ? 'Creating account...' : 'Sign up'}
+              {loading ? 'Creating profile...' : 'Create Competitor Profile'}
             </button>
           </form>
 
           <div className="mt-4 sm:mt-6 text-center text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-            Already have an account?{' '}
             <Link 
-              href="/" 
+              href="/climbs" 
               className="font-medium transition-colors"
               style={{ color: 'var(--accent)' }}
               onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
               onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
             >
-              Sign in
+              Cancel
             </Link>
           </div>
         </div>
@@ -439,3 +434,4 @@ export default function RegisterPage() {
     </main>
   )
 }
+
