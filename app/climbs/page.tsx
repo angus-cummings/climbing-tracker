@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
 import { useProfile } from '../../lib/ProfileContext'
 import { ImageModal } from '../../components/ImageModal'
+import { ConfirmationModal } from '../../components/ConfirmationModal'
 
 type Wall = {
   id: number
@@ -34,6 +35,7 @@ export default function ClimbsPage() {
   const [colours, setColours] = useState<Colour[]>([])
   const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [unsendClimbId, setUnsendClimbId] = useState<string | null>(null)
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false) // Closed by default
@@ -157,11 +159,11 @@ export default function ClimbsPage() {
               }
             }
           } else {
-            // Unmark as sent - remove or update ascent
+            // Unmark as sent - remove ascent entirely
             if (existingAscent) {
               return {
                 ...climb,
-                ascents: [{ ...existingAscent, sent: false }]
+                ascents: []
               }
             }
           }
@@ -184,6 +186,21 @@ export default function ClimbsPage() {
     
     if (!error) {
       updateClimbSentStatus(climbId, true)
+    }
+  }, [selectedProfile, user, updateClimbSentStatus])
+
+  // Mark single climb as unsent (delete the ascent row)
+  const markClimbAsUnsent = useCallback(async (climbId: string) => {
+    if (!selectedProfile || !user) return
+    
+    const { error } = await supabase
+      .from('ascents')
+      .delete()
+      .eq('climb_id', climbId)
+      .eq('profile_id', selectedProfile.profile_id)
+    
+    if (!error) {
+      updateClimbSentStatus(climbId, false)
     }
   }, [selectedProfile, user, updateClimbSentStatus])
 
@@ -521,6 +538,7 @@ export default function ClimbsPage() {
               onImageClick={setSelectedImage}
               selectedProfile={selectedProfile}
               onMarkAsSent={markClimbAsSent}
+              onUnsendClick={setUnsendClimbId}
             />
           ))}
         </div>
@@ -532,11 +550,26 @@ export default function ClimbsPage() {
         onClose={() => setSelectedImage(null)}
         alt="Climb photo"
       />
+
+      {/* Unsend Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={unsendClimbId !== null}
+        onClose={() => setUnsendClimbId(null)}
+        onConfirm={() => {
+          if (unsendClimbId) {
+            markClimbAsUnsent(unsendClimbId)
+          }
+        }}
+        title="Unsend Climb?"
+        message="Are you sure you want to unsend this climb?"
+        confirmText="Unsend"
+        cancelText="Cancel"
+      />
     </main>
   )
 }
 
-function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selectedProfile, onMarkAsSent }: any) {
+function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selectedProfile, onMarkAsSent, onUnsendClick }: any) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -601,6 +634,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selec
               onImageClick={onImageClick}
               selectedProfile={selectedProfile}
               onMarkAsSent={onMarkAsSent}
+              onUnsendClick={onUnsendClick}
             />
           ))}
         </div>
@@ -608,7 +642,7 @@ function WallCard({ wall, climbs, user, userRole, showPhoto, onImageClick, selec
     </div>
   )
 }
-function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProfile, onMarkAsSent }: any) {
+function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProfile, onMarkAsSent, onUnsendClick }: any) {
   const router = useRouter()
   const ascent = climb.ascents?.[0]
   const canEdit = userRole === 'setter' || userRole === 'admin'
@@ -678,7 +712,39 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
         {isSent ? (
-          <span className="text-sm" style={{ color: 'var(--accent)', fontWeight: 500 }}>✓ Sent</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm" style={{ color: 'var(--accent)', fontWeight: 500 }}>✓ Sent</span>
+            <button
+              onClick={() => onUnsendClick?.(climb.id)}
+              className="rounded-full p-1.5 transition"
+              style={{
+                backgroundColor: 'transparent',
+                color: '#dc2626',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+              aria-label="Unsend climb"
+              title="Unsend climb"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         ) : (
           <button
             onClick={handleSend}

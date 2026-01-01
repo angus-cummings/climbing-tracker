@@ -10,6 +10,8 @@ type CompetitorStats = {
   profile_id: string
   total_sends: number
   comp_cohort: string
+  age_category: string | null
+  rank: number
 }
 
 export default function LeaderboardPage() {
@@ -17,6 +19,7 @@ export default function LeaderboardPage() {
   const [competitors, setCompetitors] = useState<CompetitorStats[]>([])
   const [filteredCompetitors, setFilteredCompetitors] = useState<CompetitorStats[]>([])
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
+  const [ageCategoryFilter, setAgeCategoryFilter] = useState<'all' | 'u18' | 'adult' | 'masters'>('all')
   const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
@@ -37,7 +40,8 @@ export default function LeaderboardPage() {
             profile_id,
             user_id,
             competitor_number,
-            comp_cohort
+            comp_cohort,
+            age_category
           )
         `)
         .eq('sent', true)
@@ -71,6 +75,7 @@ export default function LeaderboardPage() {
         const userId = profile.user_id
         // Normalize cohort to lowercase for consistent comparison
         const cohort = (profile.comp_cohort || 'inclusive').toLowerCase()
+        const ageCategory = profile.age_category || null
         const competitorNumber = profile.competitor_number || null
         
         if (statsMap.has(profileId)) {
@@ -82,7 +87,9 @@ export default function LeaderboardPage() {
             user_id: userId,
             profile_id: profileId,
             total_sends: 1,
-            comp_cohort: cohort
+            comp_cohort: cohort,
+            age_category: ageCategory,
+            rank: 0 // Will be calculated after sorting
           })
         }
       })
@@ -91,8 +98,40 @@ export default function LeaderboardPage() {
 
       // Convert to array and sort by total sends (descending)
       const competitorsList = Array.from(statsMap.values()).sort(
-        (a, b) => b.total_sends - a.total_sends
+        (a, b) => {
+          // First sort by total_sends descending
+          if (b.total_sends !== a.total_sends) {
+            return b.total_sends - a.total_sends
+          }
+          // If tied, sort by competitor_number ascending (lower numbers first)
+          // If no competitor_number, sort by profile_id for consistency
+          const aNum = a.competitor_number ?? Infinity
+          const bNum = b.competitor_number ?? Infinity
+          if (aNum !== bNum) {
+            return aNum - bNum
+          }
+          return a.profile_id.localeCompare(b.profile_id)
+        }
       )
+
+      // Calculate ranks accounting for ties
+      // If multiple competitors have the same score, they get the same rank
+      // The next competitor gets a rank that skips the tied positions
+      competitorsList.forEach((competitor, index) => {
+        if (index === 0) {
+          // First place always gets rank 1
+          competitor.rank = 1
+        } else {
+          const prevCompetitor = competitorsList[index - 1]
+          if (competitor.total_sends === prevCompetitor.total_sends) {
+            // Tied with previous competitor - same rank
+            competitor.rank = prevCompetitor.rank
+          } else {
+            // Different score - rank is current position (1-indexed)
+            competitor.rank = index + 1
+          }
+        }
+      })
 
       setCompetitors(competitorsList)
       setLoadingData(false)
@@ -101,17 +140,23 @@ export default function LeaderboardPage() {
     fetchLeaderboardData()
   }, [user])
 
-  // Apply cohort filter (case-insensitive)
+  // Apply cohort and age category filters (case-insensitive)
   useEffect(() => {
-    let filtered: CompetitorStats[]
-    if (cohortFilter === 'all') {
-      filtered = competitors
-    } else {
-      filtered = competitors.filter(c => c.comp_cohort?.toLowerCase() === cohortFilter.toLowerCase())
+    let filtered: CompetitorStats[] = competitors
+    
+    // Apply cohort filter
+    if (cohortFilter !== 'all') {
+      filtered = filtered.filter(c => c.comp_cohort?.toLowerCase() === cohortFilter.toLowerCase())
     }
+    
+    // Apply age category filter
+    if (ageCategoryFilter !== 'all') {
+      filtered = filtered.filter(c => c.age_category?.toLowerCase() === ageCategoryFilter.toLowerCase())
+    }
+    
     setFilteredCompetitors(filtered)
-    console.log('Filtered competitors:', filtered.length, 'for cohort:', cohortFilter, 'out of', competitors.length, 'total')
-  }, [competitors, cohortFilter])
+    console.log('Filtered competitors:', filtered.length, 'for cohort:', cohortFilter, 'age category:', ageCategoryFilter, 'out of', competitors.length, 'total')
+  }, [competitors, cohortFilter, ageCategoryFilter])
 
   if (loading) {
     return (
@@ -135,7 +180,7 @@ export default function LeaderboardPage() {
         Competitor Leaderboard
       </h2>
 
-      {/* Cohort Filter */}
+      {/* Filters */}
       <div 
         className="mb-6 rounded-2xl p-4"
         style={{
@@ -145,39 +190,84 @@ export default function LeaderboardPage() {
           borderColor: 'var(--card-border)',
         }}
       >
-        <div className="flex items-center gap-4 flex-wrap">
-          <label className="text-sm font-medium" style={{ color: 'var(--foreground-secondary)' }}>
-            Competition Cohort:
-          </label>
-          <div className="flex gap-2">
-            {(['all', 'male', 'female', 'inclusive'] as const).map((cohort) => (
-              <button
-                key={cohort}
-                onClick={() => setCohortFilter(cohort)}
-                className="rounded-lg px-4 py-2 text-sm font-medium transition capitalize"
-                style={{
-                  backgroundColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--button-secondary-bg)',
-                  color: cohortFilter === cohort ? 'var(--accent-text)' : 'var(--button-secondary-text)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--border)',
-                }}
-                onMouseEnter={(e) => {
-                  if (cohortFilter !== cohort) {
-                    e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (cohortFilter !== cohort) {
-                    e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
-                  }
-                }}
-              >
-                {cohort}
-              </button>
-            ))}
+        <div className="space-y-4">
+          {/* Cohort Filter */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className="text-sm font-medium" style={{ color: 'var(--foreground-secondary)' }}>
+              Competition Cohort:
+            </label>
+            <div className="flex gap-2">
+              {(['all', 'male', 'female', 'inclusive'] as const).map((cohort) => (
+                <button
+                  key={cohort}
+                  onClick={() => setCohortFilter(cohort)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition capitalize"
+                  style={{
+                    backgroundColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--button-secondary-bg)',
+                    color: cohortFilter === cohort ? 'var(--accent-text)' : 'var(--button-secondary-text)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--border)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (cohortFilter !== cohort) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (cohortFilter !== cohort) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                    }
+                  }}
+                >
+                  {cohort}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="text-sm ml-auto" style={{ color: 'var(--foreground-secondary)' }}>
+
+          {/* Age Category Filter */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className="text-sm font-medium" style={{ color: 'var(--foreground-secondary)' }}>
+              Age Category:
+            </label>
+            <div className="flex gap-2">
+              {([
+                { value: 'all', label: 'All' },
+                { value: 'u18', label: 'U18' },
+                { value: 'adult', label: 'Adult' },
+                { value: 'masters', label: 'Masters' }
+              ] as const).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setAgeCategoryFilter(value)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition"
+                  style={{
+                    backgroundColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--button-secondary-bg)',
+                    color: ageCategoryFilter === value ? 'var(--accent-text)' : 'var(--button-secondary-text)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--border)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (ageCategoryFilter !== value) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (ageCategoryFilter !== value) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Results Count */}
+          <div className="text-sm pt-2 border-t" style={{ borderColor: 'var(--border)', color: 'var(--foreground-secondary)' }}>
             Showing {filteredCompetitors.length} competitor{filteredCompetitors.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -280,11 +370,41 @@ export default function LeaderboardPage() {
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-lg font-bold">
-                            {index + 1}
+                            {competitor.rank}
                           </span>
-                          {index === 0 && <span className="text-xl">🥇</span>}
-                          {index === 1 && <span className="text-xl">🥈</span>}
-                          {index === 2 && <span className="text-xl">🥉</span>}
+                          {(() => {
+                            const rank1Count = filteredCompetitors.filter(c => c.rank === 1).length
+                            const rank2Count = filteredCompetitors.filter(c => c.rank === 2).length
+                            
+                            // Rank 1: Always gold (all people at rank 1 get gold)
+                            if (competitor.rank === 1) {
+                              return <span className="text-xl">🥇</span>
+                            }
+                            
+                            // Calculate total medals shown so far
+                            let medalsShown = rank1Count // All rank 1 get gold
+                            
+                            // Rank 2: Silver if rank 1 has 1 person, bronze if rank 1 has 2+ people
+                            if (competitor.rank === 2) {
+                              if (medalsShown < 3) {
+                                if (rank1Count === 1) {
+                                  return <span className="text-xl">🥈</span>
+                                } else {
+                                  return <span className="text-xl">🥉</span>
+                                }
+                              }
+                            }
+                            
+                            // Rank 3: Bronze only if we haven't shown 3+ medals yet
+                            if (competitor.rank === 3) {
+                              medalsShown += (rank2Count > 0 ? 1 : 0) // Add rank 2 medals
+                              if (medalsShown < 3) {
+                                return <span className="text-xl">🥉</span>
+                              }
+                            }
+                            
+                            return null
+                          })()}
                         </div>
                       </td>
                       <td 
@@ -355,10 +475,7 @@ export default function LeaderboardPage() {
                 Your Rank
               </div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>
-                {(() => {
-                  const userRank = filteredCompetitors.findIndex(c => c.user_id === user.id)
-                  return userRank >= 0 ? userRank + 1 : '-'
-                })()}
+                {filteredCompetitors.find(c => c.user_id === user.id)?.rank ?? '-'}
               </div>
             </div>
             <div>
