@@ -220,19 +220,19 @@ export default function EditClimbPage() {
   const selectedTag = colours.find(c => String(c.id) === form.tag_colour_id)
 
   return (
-    <main className="py-8">
+    <main className="py-4 sm:py-8 px-4 sm:px-0">
       <div className="max-w-xl space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: 'var(--foreground)' }}>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--foreground)' }}>
             Edit climb
           </h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--foreground-secondary)' }}>
+          <p className="mt-1 text-xs sm:text-sm" style={{ color: 'var(--foreground-secondary)' }}>
             Update the climb details or photo.
           </p>
         </div>
 
         <div 
-          className="rounded-2xl p-6 shadow"
+          className="rounded-2xl p-4 sm:p-6 shadow"
           style={{
             backgroundColor: 'var(--card-bg)',
             borderWidth: '1px',
@@ -371,7 +371,7 @@ export default function EditClimbPage() {
               />
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <button
                 type="submit"
                 disabled={loading}
@@ -408,7 +408,7 @@ export default function EditClimbPage() {
                 type="button"
                 onClick={handleDelete}
                 disabled={loading}
-                className="ml-auto inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
+                className="sm:ml-auto inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
                 style={{
                   backgroundColor: 'rgba(239, 68, 68, 0.1)',
                   color: '#ef4444',

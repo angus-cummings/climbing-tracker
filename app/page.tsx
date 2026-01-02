@@ -34,10 +34,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-[80vh] items-center justify-center">
+    <main className="flex min-h-[80vh] items-center justify-center px-4 py-6">
       <div className="w-full max-w-md">
         <div 
-          className="rounded-2xl p-8 shadow-xl"
+          className="rounded-2xl p-6 sm:p-8 shadow-xl"
           style={{
             backgroundColor: 'var(--card-bg)',
             borderWidth: '1px',
@@ -46,10 +46,10 @@ export default function LoginPage() {
             boxShadow: `0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow)`
           }}
         >
-          <h1 className="mb-2 text-3xl font-bold" style={{ color: 'var(--foreground)' }}>
+          <h1 className="mb-2 text-2xl sm:text-3xl font-bold" style={{ color: 'var(--foreground)' }}>
             Welcome Back
           </h1>
-          <p className="mb-6" style={{ color: 'var(--foreground-secondary)' }}>
+          <p className="mb-6 text-sm sm:text-base" style={{ color: 'var(--foreground-secondary)' }}>
             Sign in to track your Summer Sector climbs
           </p>
 

@@ -134,8 +134,8 @@ export default function AnonymousPage() {
   })
 
   return (
-    <main style={{ padding: 32 }}>
-      <h2 className="text-2xl font-semibold mb-6" style={{ color: 'var(--foreground)' }}>
+    <main className="px-0 py-4 sm:py-8">
+      <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6" style={{ color: 'var(--foreground)' }}>
         Record Sends (Anonymous)
       </h2>
 
@@ -231,50 +231,52 @@ export default function AnonymousPage() {
             </div>
             <div className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
               {group.climbs.map((climb: any) => (
-                <div key={climb.id} className="p-4 flex items-center gap-4">
-                  {climb.photo && (
-                    <div 
-                      className="relative flex-shrink-0 rounded-lg overflow-hidden cursor-pointer"
-                      style={{ 
-                        backgroundColor: 'var(--background-secondary)',
-                        width: '120px',
-                        height: '90px'
-                      }}
-                      onClick={() => setSelectedImage(climb.photo)}
-                    >
-                      <img
-                        src={climb.photo}
-                        alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
-                        className="w-full h-full object-cover"
-                        draggable={false}
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {climb.sector_tag_id && (
-                        <span 
-                          className="text-sm font-semibold px-2 py-0.5 rounded"
-                          style={{ 
-                            color: 'var(--accent-text)',
-                            backgroundColor: 'var(--accent)',
-                          }}
-                        >
-                          # {climb.sector_tag_id}
-                        </span>
-                      )}
-                      <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                        Grade: {climb.tag_colour.name}
+                <div key={climb.id} className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
+                    {climb.photo && (
+                      <div 
+                        className="relative flex-shrink-0 rounded-lg overflow-hidden cursor-pointer"
+                        style={{ 
+                          backgroundColor: 'var(--background-secondary)',
+                          width: '80px',
+                          height: '60px'
+                        }}
+                        onClick={() => setSelectedImage(climb.photo)}
+                      >
+                        <img
+                          src={climb.photo}
+                          alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
+                          className="w-full h-full object-cover"
+                          draggable={false}
+                        />
                       </div>
-                    </div>
-                    <div className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
-                      {climb.hold_colour.name} holds
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        {climb.sector_tag_id && (
+                          <span 
+                            className="text-xs sm:text-sm font-semibold px-2 py-0.5 rounded"
+                            style={{ 
+                              color: 'var(--accent-text)',
+                              backgroundColor: 'var(--accent)',
+                            }}
+                          >
+                            # {climb.sector_tag_id}
+                          </span>
+                        )}
+                        <div className="text-xs sm:text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                          Grade: {climb.tag_colour.name}
+                        </div>
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
+                        {climb.hold_colour.name} holds
+                      </div>
                     </div>
                   </div>
                   <button
                     onClick={() => handleRecordSend(climb.id)}
                     disabled={loading || !competitorNumber}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                     style={{
                       backgroundColor: 'var(--accent)',
                       color: 'var(--accent-text)',

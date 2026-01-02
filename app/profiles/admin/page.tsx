@@ -202,29 +202,29 @@ export default function AdminProfilesPage() {
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottomWidth: '1px', borderBottomColor: 'var(--card-border)' }}>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
-                    Competitor #
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                    #
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Username
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
                     Role
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden md:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Cohort
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
-                    Age Category
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
+                    Age
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Junior
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Phone
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
-                    Created At
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
+                    Created
                   </th>
                 </tr>
               </thead>
@@ -244,13 +244,13 @@ export default function AdminProfilesPage() {
                       e.currentTarget.style.backgroundColor = 'transparent'
                     }}
                   >
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--foreground)' }}>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm" style={{ color: 'var(--foreground)' }}>
                       {profile.competitor_number}
                     </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--foreground)' }}>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden sm:table-cell" style={{ color: 'var(--foreground)' }}>
                       {profile.username || '-'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 sm:px-4 py-3">
                       <select
                         value={profile.role}
                         onChange={(e) => handleRoleChange(profile.profile_id, e.target.value)}
@@ -286,19 +286,19 @@ export default function AdminProfilesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--foreground)' }}>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden md:table-cell" style={{ color: 'var(--foreground)' }}>
                       {profile.comp_cohort || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--foreground)' }}>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden lg:table-cell" style={{ color: 'var(--foreground)' }}>
                       {profile.age_category || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--foreground)' }}>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden lg:table-cell" style={{ color: 'var(--foreground)' }}>
                       {profile.is_junior ? 'Yes' : 'No'}
                     </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--foreground)' }}>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden xl:table-cell" style={{ color: 'var(--foreground)' }}>
                       {profile.phone_number || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--foreground-secondary)' }}>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                       {formatDate(profile.created_at)}
                     </td>
                   </tr>

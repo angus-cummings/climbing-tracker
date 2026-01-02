@@ -250,8 +250,8 @@ export default function ClimbsPage() {
   if (!user || !selectedProfile) return <p>Loading…</p>
 
   return (
-    <main style={{ padding: 32 }}>
-      <h2 className="text-2xl font-semibold mb-6" style={{ color: 'var(--foreground)' }}>
+    <main className="px-0 py-4 sm:py-8">
+      <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6" style={{ color: 'var(--foreground)' }}>
         Climbs
       </h2>
       
@@ -331,7 +331,7 @@ export default function ClimbsPage() {
         {/* Filters Content - Collapsible */}
         {showFilters && (
           <div className="p-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {/* Wall Filter */}
           <div className="space-y-1">
             <label className="text-xs font-medium" style={{ color: 'var(--foreground-secondary)' }}>
@@ -659,61 +659,63 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
   }
 
   return (
-    <div className="p-4 flex items-center gap-4">
-      {/* Photo */}
-      {showPhoto && climb.photo && (
-        <div 
-          className="relative flex-shrink-0 rounded-lg overflow-hidden cursor-pointer transition-opacity"
-          style={{ 
-            backgroundColor: 'var(--background-secondary)',
-            width: '120px',
-            height: '90px'
-          }}
-          onClick={() => onImageClick(climb.photo)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '0.8'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1'
-          }}
-        >
-          <img
-            src={climb.photo}
-            alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
-        </div>
-      )}
-
-      {/* Climb Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          {climb.sector_tag_id && (
-            <span 
-              className="text-sm font-semibold px-2 py-0.5 rounded"
-              style={{ 
-                color: 'var(--accent-text)',
-                backgroundColor: 'var(--accent)',
-              }}
-            >
-              # {climb.sector_tag_id}
-            </span>
-          )}
-          <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-            Grade: {climb.tag_colour.name}
+    <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
+        {/* Photo */}
+        {showPhoto && climb.photo && (
+          <div 
+            className="relative flex-shrink-0 rounded-lg overflow-hidden cursor-pointer transition-opacity"
+            style={{ 
+              backgroundColor: 'var(--background-secondary)',
+              width: '80px',
+              height: '60px'
+            }}
+            onClick={() => onImageClick(climb.photo)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.8'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+            }}
+          >
+            <img
+              src={climb.photo}
+              alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
+              className="w-full h-full object-cover"
+              draggable={false}
+            />
           </div>
-        </div>
-        <div className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
-            {climb.hold_colour.name} holds          
+        )}
+
+        {/* Climb Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            {climb.sector_tag_id && (
+              <span 
+                className="text-xs sm:text-sm font-semibold px-2 py-0.5 rounded"
+                style={{ 
+                  color: 'var(--accent-text)',
+                  backgroundColor: 'var(--accent)',
+                }}
+              >
+                # {climb.sector_tag_id}
+              </span>
+            )}
+            <div className="text-xs sm:text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+              Grade: {climb.tag_colour.name}
+            </div>
+          </div>
+          <div className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
+              {climb.hold_colour.name} holds          
+          </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
         {isSent ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm" style={{ color: 'var(--accent)', fontWeight: 500 }}>✓ Sent</span>
+            <span className="text-xs sm:text-sm" style={{ color: 'var(--accent)', fontWeight: 500 }}>✓ Sent</span>
             <button
               onClick={() => onUnsendClick?.(climb.id)}
               className="rounded-full p-1.5 transition"
@@ -748,7 +750,7 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
         ) : (
           <button
             onClick={handleSend}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap"
+            className="rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition whitespace-nowrap"
             style={{
               backgroundColor: 'var(--accent)',
               color: 'var(--accent-text)',
@@ -762,7 +764,7 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
         {canEdit && (
           <button
             onClick={handleEdit}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap"
+            className="rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition whitespace-nowrap"
             style={{
               backgroundColor: 'var(--button-secondary-bg)',
               color: 'var(--button-secondary-text)',

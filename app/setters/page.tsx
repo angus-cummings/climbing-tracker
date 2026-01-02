@@ -155,19 +155,19 @@ export default function SettersPage() {
   const selectedTag = colours.find(c => String(c.id) === form.tag_colour_id)
 
   return (
-    <main className="py-8">
+    <main className="py-4 sm:py-8 px-4 sm:px-0">
       <div className="max-w-xl space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: 'var(--foreground)' }}>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--foreground)' }}>
             Setter panel
           </h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--foreground-secondary)' }}>
+          <p className="mt-1 text-xs sm:text-sm" style={{ color: 'var(--foreground-secondary)' }}>
             Add a new climb to the database.
           </p>
         </div>
 
         <div 
-          className="rounded-2xl p-6 shadow"
+          className="rounded-2xl p-4 sm:p-6 shadow"
           style={{
             backgroundColor: 'var(--card-bg)',
             borderWidth: '1px',
@@ -219,13 +219,13 @@ export default function SettersPage() {
               <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 Gym
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {gyms.map(gym => (
                   <button
                     key={gym.id}
                     type="button"
                     onClick={() => handleGymSelect(gym.id)}
-                    className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition"
+                    className="flex-1 min-w-[120px] rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition"
                     style={{
                       backgroundColor: selectedGymId === gym.id 
                         ? 'var(--accent)' 
@@ -286,7 +286,7 @@ export default function SettersPage() {
               </select>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                   Hold colour

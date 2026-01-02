@@ -203,14 +203,14 @@ export default function LeaderboardPage() {
   const showingEnd = Math.min(endIndex, filteredCompetitors.length)
 
   return (
-    <main style={{ padding: 32 }}>
-      <h2 className="text-3xl font-bold mb-6" style={{ color: 'var(--foreground)' }}>
+    <main className="px-0 py-4 sm:py-8">
+      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6" style={{ color: 'var(--foreground)' }}>
         Competitor Leaderboard
       </h2>
 
       {/* Filters */}
       <div 
-        className="mb-6 rounded-2xl p-4"
+        className="mb-4 sm:mb-6 rounded-2xl p-4"
         style={{
           backgroundColor: 'var(--card-bg)',
           borderWidth: '1px',
@@ -220,11 +220,11 @@ export default function LeaderboardPage() {
       >
         <div className="space-y-4">
           {/* Cohort Filter */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <label className="text-sm font-medium" style={{ color: 'var(--foreground-secondary)' }}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
               Competition Cohort:
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(['all', 'male', 'female', 'inclusive'] as const).map((cohort) => (
                 <button
                   key={cohort}
@@ -255,11 +255,11 @@ export default function LeaderboardPage() {
           </div>
 
           {/* Age Category Filter */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <label className="text-sm font-medium" style={{ color: 'var(--foreground-secondary)' }}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
               Age Category:
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {([
                 { value: 'all', label: 'All' },
                 { value: 'u18', label: 'U18' },
@@ -341,28 +341,28 @@ export default function LeaderboardPage() {
               <thead>
                 <tr style={{ backgroundColor: 'var(--background-secondary)' }}>
                   <th 
-                    className="text-left px-6 py-4 text-sm font-semibold"
+                    className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
                     style={{ color: 'var(--foreground)' }}
                   >
                     Rank
                   </th>
                   <th 
-                    className="text-left px-6 py-4 text-sm font-semibold"
+                    className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
                     style={{ color: 'var(--foreground)' }}
                   >
-                    Competitor Number
+                    Competitor #
                   </th>
                   <th 
-                    className="text-left px-6 py-4 text-sm font-semibold"
+                    className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold hidden sm:table-cell"
                     style={{ color: 'var(--foreground)' }}
                   >
                     Cohort
                   </th>
                   <th 
-                    className="text-right px-6 py-4 text-sm font-semibold"
+                    className="text-right px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
                     style={{ color: 'var(--foreground)' }}
                   >
-                    Total Sends
+                    Sends
                   </th>
                 </tr>
               </thead>
@@ -393,11 +393,11 @@ export default function LeaderboardPage() {
                       }}
                     >
                       <td 
-                        className="px-6 py-4"
+                        className="px-3 sm:px-6 py-3 sm:py-4"
                         style={{ color: 'var(--foreground-secondary)' }}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-lg font-bold">
+                          <span className="text-base sm:text-lg font-bold">
                             {competitor.rank}
                           </span>
                           {(() => {
@@ -436,21 +436,21 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td 
-                        className="px-6 py-4 text-sm"
+                        className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm"
                         style={{ 
                           color: isCurrentUser ? 'var(--accent)' : 'var(--foreground)',
                           fontWeight: isCurrentUser ? 600 : 400
                         }}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                           {competitor.competitor_number !== null ? (
                             <span className="font-semibold">#{competitor.competitor_number}</span>
                           ) : (
-                            <span className="text-xs opacity-60 italic">No number assigned</span>
+                            <span className="text-xs opacity-60 italic">No number</span>
                           )}
                           {isCurrentUser && (
                             <span 
-                              className="text-xs px-2 py-0.5 rounded-full font-sans font-semibold"
+                              className="text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-sans font-semibold"
                               style={{
                                 backgroundColor: 'var(--accent)',
                                 color: 'var(--accent-text)',
@@ -459,20 +459,22 @@ export default function LeaderboardPage() {
                               YOU
                             </span>
                           )}
+                          <span className="text-xs sm:hidden capitalize opacity-75">
+                            {competitor.comp_cohort}
+                          </span>
                         </div>
                       </td>
                       <td 
-                        className="px-6 py-4 text-sm capitalize"
+                        className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm capitalize hidden sm:table-cell"
                         style={{ color: 'var(--foreground-secondary)' }}
                       >
                         {competitor.comp_cohort}
                       </td>
                       <td 
-                        className="px-6 py-4 text-right"
+                        className="px-3 sm:px-6 py-3 sm:py-4 text-right text-sm sm:text-base"
                         style={{ 
                           color: isCurrentUser ? 'var(--accent)' : 'var(--foreground)',
                           fontWeight: isCurrentUser ? 700 : 600,
-                          fontSize: '1.125rem'
                         }}
                       >
                         {competitor.total_sends}
@@ -510,7 +512,7 @@ export default function LeaderboardPage() {
             borderColor: 'var(--card-border)',
           }}
         >
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <div>
               <div className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
                 Your Rank
