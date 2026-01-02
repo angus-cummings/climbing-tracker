@@ -70,6 +70,17 @@ export function Header() {
                 Setters
               </Link>
             )}
+            {userRole === 'admin' && (
+              <Link 
+                href="/profiles/admin" 
+                className="font-medium transition-colors"
+                style={{ color: 'var(--foreground-secondary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+              >
+                Admin
+              </Link>
+            )}
             <Link 
               href="/leaderboard" 
               className="font-medium transition-colors"
