@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { useUser } from '../../../lib/useUser'
 import { useRole } from '../../../lib/useRole'
+import { Pagination } from '../../../components/Pagination'
 
 type Profile = {
   profile_id: string
@@ -28,6 +29,8 @@ export default function AdminProfilesPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 25
 
   // Redirect if not admin
   useEffect(() => {
@@ -124,6 +127,14 @@ export default function AdminProfilesPage() {
     )
   }
 
+  // Calculate pagination
+  const totalPages = Math.ceil(profiles.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedProfiles = profiles.slice(startIndex, endIndex)
+  const showingStart = profiles.length > 0 ? startIndex + 1 : 0
+  const showingEnd = Math.min(endIndex, profiles.length)
+
   return (
     <main className="px-4 py-6 sm:px-6">
       <div className="mb-6">
@@ -218,7 +229,7 @@ export default function AdminProfilesPage() {
                 </tr>
               </thead>
               <tbody>
-                {profiles.map((profile) => (
+                {paginatedProfiles.map((profile) => (
                   <tr 
                     key={profile.profile_id}
                     style={{ 
@@ -295,6 +306,19 @@ export default function AdminProfilesPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={profiles.length}
+              showingStart={showingStart}
+              showingEnd={showingEnd}
+            />
+          )}
         </div>
       )}
     </main>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
+import { Pagination } from '../../components/Pagination'
 
 type CompetitorStats = {
   competitor_number: number | null
@@ -21,6 +22,8 @@ export default function LeaderboardPage() {
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
   const [ageCategoryFilter, setAgeCategoryFilter] = useState<'all' | 'u18' | 'adult' | 'masters'>('all')
   const [loadingData, setLoadingData] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 25
 
   useEffect(() => {
     if (!user) return
@@ -97,6 +100,7 @@ export default function LeaderboardPage() {
       console.log('Competitors aggregated:', statsMap.size)
 
       // Convert to array and sort by total sends (descending)
+      // Note: Ranks will be calculated after filtering
       const competitorsList = Array.from(statsMap.values()).sort(
         (a, b) => {
           // First sort by total_sends descending
@@ -114,25 +118,6 @@ export default function LeaderboardPage() {
         }
       )
 
-      // Calculate ranks accounting for ties
-      // If multiple competitors have the same score, they get the same rank
-      // The next competitor gets a rank that skips the tied positions
-      competitorsList.forEach((competitor, index) => {
-        if (index === 0) {
-          // First place always gets rank 1
-          competitor.rank = 1
-        } else {
-          const prevCompetitor = competitorsList[index - 1]
-          if (competitor.total_sends === prevCompetitor.total_sends) {
-            // Tied with previous competitor - same rank
-            competitor.rank = prevCompetitor.rank
-          } else {
-            // Different score - rank is current position (1-indexed)
-            competitor.rank = index + 1
-          }
-        }
-      })
-
       setCompetitors(competitorsList)
       setLoadingData(false)
     }
@@ -140,9 +125,9 @@ export default function LeaderboardPage() {
     fetchLeaderboardData()
   }, [user])
 
-  // Apply cohort and age category filters (case-insensitive)
+  // Apply cohort and age category filters (case-insensitive) and recalculate ranks
   useEffect(() => {
-    let filtered: CompetitorStats[] = competitors
+    let filtered: CompetitorStats[] = [...competitors] // Create a copy to avoid mutating original
     
     // Apply cohort filter
     if (cohortFilter !== 'all') {
@@ -154,7 +139,42 @@ export default function LeaderboardPage() {
       filtered = filtered.filter(c => c.age_category?.toLowerCase() === ageCategoryFilter.toLowerCase())
     }
     
+    // Re-sort the filtered list (in case filters changed the order)
+    filtered.sort((a, b) => {
+      // First sort by total_sends descending
+      if (b.total_sends !== a.total_sends) {
+        return b.total_sends - a.total_sends
+      }
+      // If tied, sort by competitor_number ascending (lower numbers first)
+      const aNum = a.competitor_number ?? Infinity
+      const bNum = b.competitor_number ?? Infinity
+      if (aNum !== bNum) {
+        return aNum - bNum
+      }
+      return a.profile_id.localeCompare(b.profile_id)
+    })
+    
+    // Recalculate ranks based on filtered results
+    // If multiple competitors have the same score, they get the same rank
+    // The next competitor gets a rank that skips the tied positions
+    filtered.forEach((competitor, index) => {
+      if (index === 0) {
+        // First place always gets rank 1
+        competitor.rank = 1
+      } else {
+        const prevCompetitor = filtered[index - 1]
+        if (competitor.total_sends === prevCompetitor.total_sends) {
+          // Tied with previous competitor - same rank
+          competitor.rank = prevCompetitor.rank
+        } else {
+          // Different score - rank is current position (1-indexed)
+          competitor.rank = index + 1
+        }
+      }
+    })
+    
     setFilteredCompetitors(filtered)
+    setCurrentPage(1) // Reset to first page when filters change
     console.log('Filtered competitors:', filtered.length, 'for cohort:', cohortFilter, 'age category:', ageCategoryFilter, 'out of', competitors.length, 'total')
   }, [competitors, cohortFilter, ageCategoryFilter])
 
@@ -173,6 +193,14 @@ export default function LeaderboardPage() {
       </main>
     )
   }
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredCompetitors.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedCompetitors = filteredCompetitors.slice(startIndex, endIndex)
+  const showingStart = filteredCompetitors.length > 0 ? startIndex + 1 : 0
+  const showingEnd = Math.min(endIndex, filteredCompetitors.length)
 
   return (
     <main style={{ padding: 32 }}>
@@ -339,7 +367,7 @@ export default function LeaderboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredCompetitors.map((competitor, index) => {
+                {paginatedCompetitors.map((competitor, index) => {
                   const isCurrentUser = competitor.user_id === user.id
                   return (
                     <tr
@@ -455,6 +483,19 @@ export default function LeaderboardPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredCompetitors.length}
+              showingStart={showingStart}
+              showingEnd={showingEnd}
+            />
+          )}
         </div>
       )}
 
