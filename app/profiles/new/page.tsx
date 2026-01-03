@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useProfile } from '../../../lib/ProfileContext'
 import { useUser } from '../../../lib/useUser'
+import { validateProfileName } from '../../../lib/validation'
 
 export default function NewProfilePage() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function NewProfilePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
 
   if (!user) {
     return (
@@ -30,10 +32,13 @@ export default function NewProfilePage() {
     e.preventDefault()
     setError(null)
     setMessage(null)
+    setNameError(null)
 
-    // Validation
-    if (!name) {
-      setError('Name is required')
+    // Validate profile name
+    const nameValidation = validateProfileName(name)
+    if (!nameValidation.valid) {
+      setNameError(nameValidation.error || 'Invalid name')
+      setError(nameValidation.error || 'Invalid name')
       return
     }
 
@@ -111,7 +116,19 @@ export default function NewProfilePage() {
               <input
                 type="text"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  if (nameError) {
+                    const validation = validateProfileName(e.target.value)
+                    setNameError(validation.valid ? null : validation.error || null)
+                  }
+                }}
+                onBlur={(e) => {
+                  const validation = validateProfileName(e.target.value)
+                  setNameError(validation.valid ? null : validation.error || null)
+                  e.currentTarget.style.borderColor = validation.valid ? 'var(--input-border)' : '#ef4444'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
                 placeholder="Competitor's full name"
                 className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
@@ -119,20 +136,21 @@ export default function NewProfilePage() {
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
+                  borderColor: nameError ? '#ef4444' : 'var(--input-border)',
                   minHeight: '44px',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.borderColor = nameError ? '#ef4444' : 'var(--accent)'
+                  e.currentTarget.style.boxShadow = nameError ? 'none' : `0 0 0 2px var(--accent)`
                 }}
                 disabled={loading}
                 required
               />
+              {nameError && (
+                <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+                  {nameError}
+                </p>
+              )}
             </div>
 
             <div>

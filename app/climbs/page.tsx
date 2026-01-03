@@ -9,6 +9,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
+import { useRole } from '../../lib/useRole'
 import { useProfile } from '../../lib/ProfileContext'
 import { ImageModal } from '../../components/ImageModal'
 import { ConfirmationModal } from '../../components/ConfirmationModal'
@@ -29,11 +30,11 @@ type Colour = {
 export default function ClimbsPage() {
   const { user, loading } = useUser()
   const { selectedProfile } = useProfile()
+  const { role: userRole } = useRole()
   const [climbs, setClimbs] = useState<any[]>([])
   const [filteredClimbs, setFilteredClimbs] = useState<any[]>([])
   const [walls, setWalls] = useState<Wall[]>([])
   const [colours, setColours] = useState<Colour[]>([])
-  const [userRole, setUserRole] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [unsendClimbId, setUnsendClimbId] = useState<string | null>(null)
   
@@ -85,14 +86,6 @@ export default function ClimbsPage() {
       }))
       setClimbs(climbsWithProfileAscents)
     })
-    
-    // Fetch user role
-    supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => setUserRole(data?.role ?? null))
     
     // Fetch walls and colours for filters
     Promise.all([
@@ -758,7 +751,7 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-hover)'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--accent)'}
           >
-            Sent!
+            Sent?
           </button>
         )}
         {canEdit && (

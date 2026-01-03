@@ -2,32 +2,19 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/useUser'
+import { useRole } from '../lib/useRole'
 import { useTheme } from '../lib/ThemeContext'
 import { ProfileSelector } from '../components/ProfileSelector'
 
 export function Header() {
   const { user, loading } = useUser()
+  const { role: userRole } = useRole()
   const { theme, toggleTheme } = useTheme()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
-  const [userRole, setUserRole] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!user) {
-      setUserRole(null)
-      return
-    }
-
-    supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => setUserRole(data?.role ?? null))
-  }, [user])
 
   const handleLogout = async () => {
     try {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ImageModal } from '../../components/ImageModal'
+import { validateCompetitorNumber } from '../../lib/validation'
 
 type Wall = {
   id: number
@@ -24,6 +25,7 @@ export default function AnonymousPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [competitorNumberError, setCompetitorNumberError] = useState<string | null>(null)
 
   useEffect(() => {
     // Fetch climbs, walls, and colours
@@ -60,16 +62,18 @@ export default function AnonymousPage() {
   }, [])
 
   const handleRecordSend = async (climbId: string) => {
-    if (!competitorNumber) {
-      setError('Please enter your competitor number first')
+    setError(null)
+    setCompetitorNumberError(null)
+
+    // Validate competitor number
+    const validation = validateCompetitorNumber(competitorNumber)
+    if (!validation.valid) {
+      setCompetitorNumberError(validation.error || 'Invalid competitor number')
+      setError(validation.error || 'Invalid competitor number')
       return
     }
 
-    const compNum = parseInt(competitorNumber)
-    if (isNaN(compNum)) {
-      setError('Competitor number must be a valid number')
-      return
-    }
+    const compNum = parseInt(competitorNumber, 10)
 
     setLoading(true)
     setError(null)
@@ -157,7 +161,19 @@ export default function AnonymousPage() {
         <input
           type="number"
           value={competitorNumber}
-          onChange={e => setCompetitorNumber(e.target.value)}
+          onChange={(e) => {
+            setCompetitorNumber(e.target.value)
+            if (competitorNumberError) {
+              const validation = validateCompetitorNumber(e.target.value)
+              setCompetitorNumberError(validation.valid ? null : validation.error || null)
+            }
+          }}
+          onBlur={(e) => {
+            const validation = validateCompetitorNumber(e.target.value)
+            setCompetitorNumberError(validation.valid ? null : validation.error || null)
+            e.currentTarget.style.borderColor = validation.valid ? 'var(--input-border)' : '#ef4444'
+            e.currentTarget.style.boxShadow = 'none'
+          }}
           placeholder="Enter your competitor number"
           className="w-full rounded-lg px-4 py-2.5 text-base sm:text-sm outline-none transition"
           style={{
@@ -165,18 +181,19 @@ export default function AnonymousPage() {
             color: 'var(--foreground)',
             borderWidth: '1px',
             borderStyle: 'solid',
-            borderColor: 'var(--input-border)',
+            borderColor: competitorNumberError ? '#ef4444' : 'var(--input-border)',
             minHeight: '44px',
           }}
           onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent)'
-            e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'var(--input-border)'
-            e.currentTarget.style.boxShadow = 'none'
+            e.currentTarget.style.borderColor = competitorNumberError ? '#ef4444' : 'var(--accent)'
+            e.currentTarget.style.boxShadow = competitorNumberError ? 'none' : `0 0 0 2px var(--accent)`
           }}
         />
+        {competitorNumberError && (
+          <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+            {competitorNumberError}
+          </p>
+        )}
         <p className="mt-2 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
           Enter your competitor number to record sends. You won't be able to see your recorded sends here.
         </p>

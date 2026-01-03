@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { useUser } from '../../../../lib/useUser'
+import { useRole } from '../../../../lib/useRole'
 import { ImageUpload } from '../../../../components/ImageUpload'
 
 type ClimbData = {
@@ -30,6 +31,7 @@ export default function EditClimbPage() {
   const router = useRouter()
   const climbId = params.id as string
   const { user, loading: authLoading } = useUser()
+  const { role: userRole } = useRole()
   
   const [form, setForm] = useState<ClimbData>({
     wall: '',
@@ -41,26 +43,8 @@ export default function EditClimbPage() {
   const [colours, setColours] = useState<Colour[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
-  const [userRole, setUserRole] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  // Check user role
-  useEffect(() => {
-    const checkRole = async () => {
-      if (!user) return
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      
-      setUserRole(profile?.role ?? null)
-    }
-    
-    checkRole()
-  }, [user])
 
   // Load climb data and options
   useEffect(() => {

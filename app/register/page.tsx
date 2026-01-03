@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
+import { validateEmail, validatePhoneNumber, validateProfileName } from '../../lib/validation'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -17,30 +18,47 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  
+  // Field-specific validation errors
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setMessage(null)
+    setEmailError(null)
+    setPhoneError(null)
+    setNameError(null)
 
-    // Validation
-    if (!email || !password) {
-      setError('Email and password are required')
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.valid) {
+      setEmailError(emailValidation.error || 'Invalid email')
+      setError(emailValidation.error || 'Invalid email')
       return
     }
 
-    if (!name) {
-      setError('Name is required')
+    // Validate profile name
+    const nameValidation = validateProfileName(name)
+    if (!nameValidation.valid) {
+      setNameError(nameValidation.error || 'Invalid name')
+      setError(nameValidation.error || 'Invalid name')
       return
     }
 
-    if (!phoneNumber) {
-      setError('Phone number is required')
+    // Validate phone number
+    const phoneValidation = validatePhoneNumber(phoneNumber)
+    if (!phoneValidation.valid) {
+      setPhoneError(phoneValidation.error || 'Invalid phone number')
+      setError(phoneValidation.error || 'Invalid phone number')
       return
     }
 
-    if (!ageCategory) {
-      setError('Age category is required')
+    // Password validation
+    if (!password) {
+      setError('Password is required')
       return
     }
 
@@ -51,6 +69,11 @@ export default function RegisterPage() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
+      return
+    }
+
+    if (!ageCategory) {
+      setError('Age category is required')
       return
     }
 
@@ -81,7 +104,7 @@ export default function RegisterPage() {
       // Create profile with all required fields
       const { error: profileError } = await supabase.rpc('create_user_profile', {
         p_user_id: data.user.id,
-        p_name: name,
+        p_profile_name: name,
         p_phone_number: phoneNumber,
         p_comp_cohort: compCohort,
         p_age_category: ageCategory,
@@ -137,7 +160,19 @@ export default function RegisterPage() {
               <input
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (emailError) {
+                    const validation = validateEmail(e.target.value)
+                    setEmailError(validation.valid ? null : validation.error || null)
+                  }
+                }}
+                onBlur={(e) => {
+                  const validation = validateEmail(e.target.value)
+                  setEmailError(validation.valid ? null : validation.error || null)
+                  e.currentTarget.style.borderColor = validation.valid ? 'var(--input-border)' : '#ef4444'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
                 placeholder="you@example.com"
                 className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
@@ -145,20 +180,21 @@ export default function RegisterPage() {
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
+                  borderColor: emailError ? '#ef4444' : 'var(--input-border)',
                   minHeight: '44px',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.borderColor = emailError ? '#ef4444' : 'var(--accent)'
+                  e.currentTarget.style.boxShadow = emailError ? 'none' : `0 0 0 2px var(--accent)`
                 }}
                 disabled={loading}
                 required
               />
+              {emailError && (
+                <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+                  {emailError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -239,7 +275,19 @@ export default function RegisterPage() {
               <input
                 type="text"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  if (nameError) {
+                    const validation = validateProfileName(e.target.value)
+                    setNameError(validation.valid ? null : validation.error || null)
+                  }
+                }}
+                onBlur={(e) => {
+                  const validation = validateProfileName(e.target.value)
+                  setNameError(validation.valid ? null : validation.error || null)
+                  e.currentTarget.style.borderColor = validation.valid ? 'var(--input-border)' : '#ef4444'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
                 placeholder="Your full name"
                 className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
@@ -247,20 +295,21 @@ export default function RegisterPage() {
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
+                  borderColor: nameError ? '#ef4444' : 'var(--input-border)',
                   minHeight: '44px',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.borderColor = nameError ? '#ef4444' : 'var(--accent)'
+                  e.currentTarget.style.boxShadow = nameError ? 'none' : `0 0 0 2px var(--accent)`
                 }}
                 disabled={loading}
                 required
               />
+              {nameError && (
+                <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+                  {nameError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -273,7 +322,19 @@ export default function RegisterPage() {
               <input
                 type="tel"
                 value={phoneNumber}
-                onChange={e => setPhoneNumber(e.target.value)}
+                onChange={(e) => {
+                  setPhoneNumber(e.target.value)
+                  if (phoneError) {
+                    const validation = validatePhoneNumber(e.target.value)
+                    setPhoneError(validation.valid ? null : validation.error || null)
+                  }
+                }}
+                onBlur={(e) => {
+                  const validation = validatePhoneNumber(e.target.value)
+                  setPhoneError(validation.valid ? null : validation.error || null)
+                  e.currentTarget.style.borderColor = validation.valid ? 'var(--input-border)' : '#ef4444'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
                 placeholder="+1 (555) 123-4567"
                 className="w-full rounded-lg px-4 py-3 sm:py-2.5 text-base sm:text-sm outline-none transition"
                 style={{
@@ -281,20 +342,26 @@ export default function RegisterPage() {
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
+                  borderColor: phoneError ? '#ef4444' : 'var(--input-border)',
                   minHeight: '44px',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)'
-                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--input-border)'
-                  e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.borderColor = phoneError ? '#ef4444' : 'var(--accent)'
+                  e.currentTarget.style.boxShadow = phoneError ? 'none' : `0 0 0 2px var(--accent)`
                 }}
                 disabled={loading}
                 required
               />
+              {phoneError && (
+                <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+                  {phoneError}
+                </p>
+              )}
+              {!phoneError && (
+                <p className="mt-1 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
+                  Format: +1 (555) 123-4567 or 555-123-4567
+                </p>
+              )}
             </div>
 
             <div>
