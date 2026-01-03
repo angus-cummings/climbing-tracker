@@ -38,12 +38,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = async (): Promise<Profile[]> => {
     if (!user) {
       setProfiles([])
       setSelectedProfile(null)
       setLoading(false)
-      return
+      return []
     }
 
     try {
@@ -65,10 +65,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       } else if (profileList.length === 0) {
         setSelectedProfile(null)
       }
+
+      return profileList
     } catch (error) {
       console.error('Error fetching profiles:', error)
       setProfiles([])
       setSelectedProfile(null)
+      return []
     } finally {
       setLoading(false)
     }
@@ -111,12 +114,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       if (error) throw error
 
       // Refresh profiles to get the new one with all fields
-      await refreshProfiles()
-
+      const updatedProfiles = await fetchProfiles()
+      
       // Select the newly created profile
-      await refreshProfiles()
-const updatedProfiles = await fetchProfiles() // or use the refreshed state
-const newProfile = updatedProfiles.find(p => p.profile_id === profileId)
+      const newProfile = updatedProfiles.find(p => p.profile_id === profileId)
       if (newProfile) {
         setSelectedProfile(newProfile)
       }
