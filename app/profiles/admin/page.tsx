@@ -174,7 +174,7 @@ export default function AdminProfilesPage() {
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      e.currentTarget.blur()
+      (e.currentTarget as HTMLElement).blur()
     } else if (e.key === 'Escape') {
       cancelEditing()
     }
