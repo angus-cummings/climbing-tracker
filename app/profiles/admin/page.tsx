@@ -160,7 +160,7 @@ export default function AdminProfilesPage() {
     setEditing(null)
   }
 
-  const handleInputChange = (value: string | boolean) => {
+  const handleInputChange = (value: string | boolean | null) => {
     if (editing) {
       setEditing({ ...editing, value })
     }
