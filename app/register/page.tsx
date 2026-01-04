@@ -102,9 +102,10 @@ export default function RegisterPage() {
       }
 
       // Create profile with all required fields
+      // Note: Using p_name instead of p_profile_name to match the database function signature
       const { error: profileError } = await supabase.rpc('create_user_profile', {
         p_user_id: data.user.id,
-        p_profile_name: name,
+        p_name: name,
         p_phone_number: phoneNumber,
         p_comp_cohort: compCohort,
         p_age_category: ageCategory,
