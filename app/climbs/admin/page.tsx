@@ -6,33 +6,46 @@ import { supabase } from '../../../lib/supabase'
 import { useUser } from '../../../lib/useUser'
 import { useRole } from '../../../lib/useRole'
 import { Pagination } from '../../../components/Pagination'
-import { validatePhoneNumber, validateProfileName } from '../../../lib/validation'
 import { SuccessModal } from '../../../components/SuccessModal'
 
-type Profile = {
-  profile_id: string
-  user_id: string
-  username: string | null
-  role: string
+type Climb = {
+  id: string
+  sector_tag_id: number
+  wall: number
+  hold_colour_id: number
+  tag_colour_id: number
+  photo: string | null
   created_at: string
-  comp_cohort: string | null
-  competitor_number: number
-  is_junior: boolean | null
-  age_category: string | null
-  phone_number: string | null
+  wall_name?: string
+  hold_colour_name?: string
+  tag_colour_name?: string
+}
+
+type Wall = {
+  id: number
+  name: string
+}
+
+type Colour = {
+  id: number
+  name: string
+  hex_code: string | null
+  usage?: 'hold' | 'tag' | 'both'
 }
 
 type EditingField = {
-  profileId: string
+  climbId: string
   field: string
-  value: string | boolean | null
+  value: string | number | null
 }
 
-export default function AdminProfilesPage() {
+export default function AdminClimbsPage() {
   const router = useRouter()
   const { user, loading: userLoading } = useUser()
   const { role, loading: roleLoading } = useRole()
-  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [climbs, setClimbs] = useState<Climb[]>([])
+  const [walls, setWalls] = useState<Wall[]>([])
+  const [colours, setColours] = useState<Colour[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const [editing, setEditing] = useState<EditingField | null>(null)
@@ -40,13 +53,12 @@ export default function AdminProfilesPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortField, setSortField] = useState<'competitor_number' | 'username' | null>(null)
+  const [sortField, setSortField] = useState<'sector_tag_id' | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [showFilters, setShowFilters] = useState(false)
-  const [roleFilter, setRoleFilter] = useState<'all' | 'climber' | 'setter' | 'admin'>('all')
-  const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
-  const [ageCategoryFilter, setAgeCategoryFilter] = useState<'all' | 'u18' | 'adult' | 'masters'>('all')
-  const [isJuniorFilter, setIsJuniorFilter] = useState<'all' | 'yes' | 'no'>('all')
+  const [wallFilter, setWallFilter] = useState<number | 'all'>('all')
+  const [holdColourFilter, setHoldColourFilter] = useState<number | 'all'>('all')
+  const [tagColourFilter, setTagColourFilter] = useState<number | 'all'>('all')
   const itemsPerPage = 25
 
   // Redirect if not admin
@@ -63,88 +75,131 @@ export default function AdminProfilesPage() {
     }
   }, [user, role, userLoading, roleLoading, router])
 
-  // Fetch all profiles
+  // Fetch all climbs, walls, and colours
   useEffect(() => {
     if (role !== 'admin' || !user) return
 
-    const fetchProfiles = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
+        
+        // Fetch climbs with related data
+        const { data: climbsData, error: climbsError } = await supabase
+          .from('climbs')
+          .select(`
+            id,
+            sector_tag_id,
+            wall,
+            hold_colour_id,
+            tag_colour_id,
+            photo,
+            created_at,
+            walls!wall(id, name),
+            hold_colour:colours!hold_colour_id(id, name),
+            tag_colour:colours!tag_colour_id(id, name)
+          `)
           .order('created_at', { ascending: false })
 
-        if (error) throw error
-        setProfiles(data || [])
+        if (climbsError) throw climbsError
+
+        // Transform the data
+        const transformedClimbs = (climbsData || []).map((climb: any) => ({
+          id: climb.id,
+          sector_tag_id: climb.sector_tag_id,
+          wall: climb.wall,
+          hold_colour_id: climb.hold_colour_id,
+          tag_colour_id: climb.tag_colour_id,
+          photo: climb.photo,
+          created_at: climb.created_at,
+          wall_name: climb.walls?.name || '-',
+          hold_colour_name: climb.hold_colour?.name || '-',
+          tag_colour_name: climb.tag_colour?.name || '-',
+        }))
+
+        setClimbs(transformedClimbs)
+
+        // Fetch walls and colours for dropdowns
+        const [{ data: wallData }, { data: colourData }] = await Promise.all([
+          supabase.from('walls').select('id, name').order('name'),
+          supabase.from('colours').select('id, name, hex_code, usage').order('name'),
+        ])
+
+        setWalls(wallData || [])
+        setColours(colourData || [])
       } catch (err: any) {
-        console.error('Error fetching profiles:', err)
-        setError(err.message || 'Failed to fetch profiles')
+        console.error('Error fetching data:', err)
+        setError(err.message || 'Failed to fetch climbs')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchProfiles()
+    fetchData()
   }, [role, user])
 
   const handleFieldUpdate = async (
-    profileId: string,
+    climbId: string,
     field: string,
-    value: string | boolean | null
+    value: string | number | null
   ) => {
     if (!user || role !== 'admin') return
 
-    // Validation
-    if (field === 'username' && value !== null && value !== '') {
-      const validation = validateProfileName(value as string)
-      if (!validation.valid) {
-        setError(validation.error || 'Invalid username')
-        setTimeout(() => setError(null), 5000)
-        setEditing(null)
-        return
-      }
-    }
-
-    if (field === 'phone_number' && value !== null && value !== '') {
-      const validation = validatePhoneNumber(value as string)
-      if (!validation.valid) {
-        setError(validation.error || 'Invalid phone number')
-        setTimeout(() => setError(null), 5000)
-        setEditing(null)
-        return
-      }
-    }
-
     try {
-      setUpdating(profileId)
+      setUpdating(climbId)
       setError(null)
       setSuccess(null)
 
       const updateData: any = { [field]: value }
       
-      // Handle empty strings as null (for text fields)
-      if (value === '' && field !== 'is_junior') {
-        updateData[field] = null
+      // Convert to numbers for ID fields
+      if (field === 'wall' || field === 'hold_colour_id' || field === 'tag_colour_id' || field === 'sector_tag_id') {
+        updateData[field] = value ? Number(value) : null
       }
-      
-      // is_junior is already handled as boolean | null, so no conversion needed
 
       const { error } = await supabase
-        .from('profiles')
+        .from('climbs')
         .update(updateData)
-        .eq('profile_id', profileId)
+        .eq('id', climbId)
 
       if (error) throw error
 
       // Update local state
-      setProfiles(prev =>
-        prev.map(p => 
-          p.profile_id === profileId 
-            ? { ...p, [field]: updateData[field] } 
-            : p
+      const updatedClimbs = await supabase
+        .from('climbs')
+        .select(`
+          id,
+          sector_tag_id,
+          wall,
+          hold_colour_id,
+          tag_colour_id,
+          photo,
+          created_at,
+          walls!wall(id, name),
+          hold_colour:colours!hold_colour_id(id, name),
+          tag_colour:colours!tag_colour_id(id, name)
+        `)
+        .eq('id', climbId)
+        .single()
+
+      if (updatedClimbs.data) {
+        const updated = updatedClimbs.data as any
+        setClimbs(prev =>
+          prev.map(c => 
+            c.id === climbId 
+              ? {
+                  ...c,
+                  [field]: field === 'wall' || field === 'hold_colour_id' || field === 'tag_colour_id' || field === 'sector_tag_id'
+                    ? Number(value) 
+                    : value,
+                  wall_name: field === 'wall' ? (updated.walls?.name || '-') : c.wall_name,
+                  hold_colour_name: field === 'hold_colour_id' ? (updated.hold_colour?.name || '-') : c.hold_colour_name,
+                  tag_colour_name: field === 'tag_colour_id' ? (updated.tag_colour?.name || '-') : c.tag_colour_name,
+                }
+              : c
+          )
         )
-      )
+      }
+
       setSuccess(`${field.replace('_', ' ')} updated successfully`)
       setEditing(null)
     } catch (err: any) {
@@ -156,16 +211,15 @@ export default function AdminProfilesPage() {
     }
   }
 
-
-  const startEditing = (profileId: string, field: string, currentValue: string | boolean | null) => {
-    setEditing({ profileId, field, value: currentValue })
+  const startEditing = (climbId: string, field: string, currentValue: string | number | null) => {
+    setEditing({ climbId, field, value: currentValue })
   }
 
   const cancelEditing = () => {
     setEditing(null)
   }
 
-  const handleInputChange = (value: string | boolean | null) => {
+  const handleInputChange = (value: string | number | null) => {
     if (editing) {
       setEditing({ ...editing, value })
     }
@@ -173,7 +227,7 @@ export default function AdminProfilesPage() {
 
   const handleInputBlur = () => {
     if (editing) {
-      handleFieldUpdate(editing.profileId, editing.field, editing.value)
+      handleFieldUpdate(editing.climbId, editing.field, editing.value)
     }
   }
 
@@ -195,64 +249,52 @@ export default function AdminProfilesPage() {
     })
   }
 
-  // Filter profiles based on search query and filters
-  const filterProfiles = (profiles: Profile[], query: string): Profile[] => {
-    let filtered = [...profiles]
+  // Filter climbs based on search query and filters
+  const filterClimbs = (climbs: Climb[], query: string): Climb[] => {
+    let filtered = [...climbs]
 
     // Apply search query
     if (query.trim()) {
       const lowerQuery = query.toLowerCase()
-      filtered = filtered.filter(profile => {
+      filtered = filtered.filter(climb => {
         return (
-          (profile.username?.toLowerCase().includes(lowerQuery) ?? false) ||
-          (profile.role?.toLowerCase().includes(lowerQuery) ?? false) ||
-          (profile.comp_cohort?.toLowerCase().includes(lowerQuery) ?? false) ||
-          (profile.age_category?.toLowerCase().includes(lowerQuery) ?? false) ||
-          (profile.phone_number?.toLowerCase().includes(lowerQuery) ?? false) ||
-          profile.competitor_number.toString().includes(lowerQuery) ||
-          (profile.is_junior !== null && (profile.is_junior ? 'yes' : 'no').includes(lowerQuery))
+          climb.sector_tag_id.toString().includes(lowerQuery) ||
+          (climb.wall_name?.toLowerCase().includes(lowerQuery) ?? false) ||
+          (climb.hold_colour_name?.toLowerCase().includes(lowerQuery) ?? false) ||
+          (climb.tag_colour_name?.toLowerCase().includes(lowerQuery) ?? false)
         )
       })
     }
 
-    // Apply role filter
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(profile => profile.role === roleFilter)
+    // Apply wall filter
+    if (wallFilter !== 'all') {
+      filtered = filtered.filter(climb => climb.wall === wallFilter)
     }
 
-    // Apply cohort filter
-    if (cohortFilter !== 'all') {
-      filtered = filtered.filter(profile => profile.comp_cohort?.toLowerCase() === cohortFilter.toLowerCase())
+    // Apply hold colour filter
+    if (holdColourFilter !== 'all') {
+      filtered = filtered.filter(climb => climb.hold_colour_id === holdColourFilter)
     }
 
-    // Apply age category filter
-    if (ageCategoryFilter !== 'all') {
-      filtered = filtered.filter(profile => profile.age_category?.toLowerCase() === ageCategoryFilter.toLowerCase())
-    }
-
-    // Apply is_junior filter
-    if (isJuniorFilter !== 'all') {
-      const isJunior = isJuniorFilter === 'yes'
-      filtered = filtered.filter(profile => profile.is_junior === isJunior)
+    // Apply tag colour filter
+    if (tagColourFilter !== 'all') {
+      filtered = filtered.filter(climb => climb.tag_colour_id === tagColourFilter)
     }
 
     return filtered
   }
 
-  // Sort profiles
-  const sortProfiles = (profiles: Profile[], field: 'competitor_number' | 'username' | null, direction: 'asc' | 'desc'): Profile[] => {
-    if (!field) return profiles
+  // Sort climbs
+  const sortClimbs = (climbs: Climb[], field: 'sector_tag_id' | null, direction: 'asc' | 'desc'): Climb[] => {
+    if (!field) return climbs
 
-    return [...profiles].sort((a, b) => {
-      let aValue: string | number
-      let bValue: string | number
+    return [...climbs].sort((a, b) => {
+      let aValue: number
+      let bValue: number
 
-      if (field === 'competitor_number') {
-        aValue = a.competitor_number
-        bValue = b.competitor_number
-      } else if (field === 'username') {
-        aValue = (a.username || '').toLowerCase()
-        bValue = (b.username || '').toLowerCase()
+      if (field === 'sector_tag_id') {
+        aValue = a.sector_tag_id
+        bValue = b.sector_tag_id
       } else {
         return 0
       }
@@ -264,26 +306,24 @@ export default function AdminProfilesPage() {
   }
 
   // Handle sort toggle
-  const handleSort = (field: 'competitor_number' | 'username') => {
+  const handleSort = (field: 'sector_tag_id') => {
     if (sortField === field) {
-      // Toggle direction if same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
     } else {
-      // New field, default to ascending
       setSortField(field)
       setSortDirection('asc')
     }
-    setCurrentPage(1) // Reset to first page when sorting
+    setCurrentPage(1)
   }
 
   // Reset page when filters or search change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, roleFilter, cohortFilter, ageCategoryFilter, isJuniorFilter])
+  }, [searchQuery, wallFilter, holdColourFilter, tagColourFilter])
 
-  // Get filtered and sorted profiles
-  const filteredProfiles = filterProfiles(profiles, searchQuery)
-  const sortedProfiles = sortProfiles(filteredProfiles, sortField, sortDirection)
+  // Get filtered and sorted climbs
+  const filteredClimbs = filterClimbs(climbs, searchQuery)
+  const sortedClimbs = sortClimbs(filteredClimbs, sortField, sortDirection)
 
   if (userLoading || roleLoading || loading) {
     return (
@@ -302,21 +342,21 @@ export default function AdminProfilesPage() {
   }
 
   // Calculate pagination
-  const totalPages = Math.ceil(sortedProfiles.length / itemsPerPage)
+  const totalPages = Math.ceil(sortedClimbs.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedProfiles = sortedProfiles.slice(startIndex, endIndex)
-  const showingStart = sortedProfiles.length > 0 ? startIndex + 1 : 0
-  const showingEnd = Math.min(endIndex, sortedProfiles.length)
+  const paginatedClimbs = sortedClimbs.slice(startIndex, endIndex)
+  const showingStart = sortedClimbs.length > 0 ? startIndex + 1 : 0
+  const showingEnd = Math.min(endIndex, sortedClimbs.length)
 
   return (
     <main className="px-4 py-6 sm:px-6">
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
-          Admin - Manage Profiles
+          Admin - Manage Climbs
         </h1>
         <p className="text-sm sm:text-base mb-4" style={{ color: 'var(--foreground-secondary)' }}>
-          View and manage all user profiles. Click on any field to edit it.
+          View and manage all climbs. Click on any field to edit it.
         </p>
       </div>
 
@@ -362,10 +402,9 @@ export default function AdminProfilesPage() {
             {(() => {
               const activeFilters = [
                 searchQuery.trim() !== '',
-                roleFilter !== 'all',
-                cohortFilter !== 'all',
-                ageCategoryFilter !== 'all',
-                isJuniorFilter !== 'all',
+                wallFilter !== 'all',
+                holdColourFilter !== 'all',
+                tagColourFilter !== 'all',
               ].filter(Boolean).length
               return activeFilters > 0 ? (
                 <span 
@@ -446,15 +485,15 @@ export default function AdminProfilesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Role Filter */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Wall Filter */}
               <div>
                 <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground-secondary)' }}>
-                  Role
+                  Wall
                 </label>
                 <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as 'all' | 'climber' | 'setter' | 'admin')}
+                  value={wallFilter}
+                  onChange={(e) => setWallFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                   className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-all duration-150"
                   style={{
                     backgroundColor: 'var(--input-bg)',
@@ -473,21 +512,21 @@ export default function AdminProfilesPage() {
                     e.currentTarget.style.boxShadow = 'none'
                   }}
                 >
-                  <option value="all">All Roles</option>
-                  <option value="climber">Climber</option>
-                  <option value="setter">Setter</option>
-                  <option value="admin">Admin</option>
+                  <option value="all">All Walls</option>
+                  {walls.map(wall => (
+                    <option key={wall.id} value={wall.id}>{wall.name}</option>
+                  ))}
                 </select>
               </div>
 
-              {/* Cohort Filter */}
+              {/* Hold Colour Filter */}
               <div>
                 <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground-secondary)' }}>
-                  Cohort
+                  Hold Colour
                 </label>
                 <select
-                  value={cohortFilter}
-                  onChange={(e) => setCohortFilter(e.target.value as 'all' | 'male' | 'female' | 'inclusive')}
+                  value={holdColourFilter}
+                  onChange={(e) => setHoldColourFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                   className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-all duration-150"
                   style={{
                     backgroundColor: 'var(--input-bg)',
@@ -506,21 +545,21 @@ export default function AdminProfilesPage() {
                     e.currentTarget.style.boxShadow = 'none'
                   }}
                 >
-                  <option value="all">All Cohorts</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="inclusive">Inclusive</option>
+                  <option value="all">All Hold Colours</option>
+                  {colours.filter(c => c.usage === 'hold' || c.usage === 'both').map(colour => (
+                    <option key={colour.id} value={colour.id}>{colour.name}</option>
+                  ))}
                 </select>
               </div>
 
-              {/* Age Category Filter */}
+              {/* Tag Colour Filter */}
               <div>
                 <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground-secondary)' }}>
-                  Age Category
+                  Tag Colour
                 </label>
                 <select
-                  value={ageCategoryFilter}
-                  onChange={(e) => setAgeCategoryFilter(e.target.value as 'all' | 'u18' | 'adult' | 'masters')}
+                  value={tagColourFilter}
+                  onChange={(e) => setTagColourFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                   className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-all duration-150"
                   style={{
                     backgroundColor: 'var(--input-bg)',
@@ -539,42 +578,10 @@ export default function AdminProfilesPage() {
                     e.currentTarget.style.boxShadow = 'none'
                   }}
                 >
-                  <option value="all">All Ages</option>
-                  <option value="u18">U18</option>
-                  <option value="adult">Adult</option>
-                  <option value="masters">Masters</option>
-                </select>
-              </div>
-
-              {/* Is Junior Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground-secondary)' }}>
-                  Junior
-                </label>
-                <select
-                  value={isJuniorFilter}
-                  onChange={(e) => setIsJuniorFilter(e.target.value as 'all' | 'yes' | 'no')}
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-all duration-150"
-                  style={{
-                    backgroundColor: 'var(--input-bg)',
-                    color: 'var(--foreground)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: 'var(--input-border)',
-                    cursor: 'pointer',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent)'
-                    e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--input-border)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                >
-                  <option value="all">All</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
+                  <option value="all">All Tag Colours</option>
+                  {colours.filter(c => c.usage === 'tag' || c.usage === 'both').map(colour => (
+                    <option key={colour.id} value={colour.id}>{colour.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -584,10 +591,9 @@ export default function AdminProfilesPage() {
               <button
                 onClick={() => {
                   setSearchQuery('')
-                  setRoleFilter('all')
-                  setCohortFilter('all')
-                  setAgeCategoryFilter('all')
-                  setIsJuniorFilter('all')
+                  setWallFilter('all')
+                  setHoldColourFilter('all')
+                  setTagColourFilter('all')
                 }}
                 className="rounded-lg px-4 py-2 text-sm font-medium transition"
                 style={{
@@ -634,7 +640,7 @@ export default function AdminProfilesPage() {
         duration={2000}
       />
 
-      {profiles.length === 0 ? (
+      {climbs.length === 0 ? (
         <div 
           className="rounded-2xl p-8 text-center"
           style={{
@@ -644,9 +650,9 @@ export default function AdminProfilesPage() {
             borderColor: 'var(--card-border)',
           }}
         >
-          <p style={{ color: 'var(--foreground-secondary)' }}>No profiles found</p>
+          <p style={{ color: 'var(--foreground-secondary)' }}>No climbs found</p>
         </div>
-      ) : sortedProfiles.length === 0 ? (
+      ) : sortedClimbs.length === 0 ? (
         <div 
           className="rounded-2xl p-8 text-center"
           style={{
@@ -657,7 +663,7 @@ export default function AdminProfilesPage() {
           }}
         >
           <p style={{ color: 'var(--foreground-secondary)' }}>
-            No profiles match your search "{searchQuery}"
+            No climbs match your search "{searchQuery}"
           </p>
         </div>
       ) : (
@@ -677,7 +683,7 @@ export default function AdminProfilesPage() {
                   <th 
                     className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer select-none transition-colors" 
                     style={{ color: 'var(--foreground-secondary)' }}
-                    onClick={() => handleSort('competitor_number')}
+                    onClick={() => handleSort('sector_tag_id')}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = 'var(--accent)'
                     }}
@@ -687,27 +693,7 @@ export default function AdminProfilesPage() {
                   >
                     <div className="flex items-center gap-1">
                       #
-                      {sortField === 'competitor_number' && (
-                        <span style={{ color: 'var(--accent)' }}>
-                          {sortDirection === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th 
-                    className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none transition-colors" 
-                    style={{ color: 'var(--foreground-secondary)' }}
-                    onClick={() => handleSort('username')}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = 'var(--accent)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = 'var(--foreground-secondary)'
-                    }}
-                  >
-                    <div className="flex items-center gap-1">
-                      Username
-                      {sortField === 'username' && (
+                      {sortField === 'sector_tag_id' && (
                         <span style={{ color: 'var(--accent)' }}>
                           {sortDirection === 'asc' ? '↑' : '↓'}
                         </span>
@@ -715,19 +701,13 @@ export default function AdminProfilesPage() {
                     </div>
                   </th>
                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
-                    Role
+                    Wall
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden md:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
-                    Cohort
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                    Hold Colour
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
-                    Age
-                  </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
-                    Junior
-                  </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
-                    Phone
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                    Tag Colour
                   </th>
                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Created
@@ -735,9 +715,9 @@ export default function AdminProfilesPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedProfiles.map((profile) => (
+                {paginatedClimbs.map((climb) => (
                   <tr 
-                    key={profile.profile_id}
+                    key={climb.id}
                     style={{ 
                       borderBottomWidth: '1px', 
                       borderBottomColor: 'var(--card-border)',
@@ -750,20 +730,22 @@ export default function AdminProfilesPage() {
                       e.currentTarget.style.backgroundColor = 'transparent'
                     }}
                   >
-                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm" style={{ color: 'var(--foreground)' }}>
-                      {profile.competitor_number}
-                    </td>
-                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden sm:table-cell" style={{ color: 'var(--foreground)' }}>
+                    <td 
+                      className="px-2 sm:px-4 py-3 text-xs sm:text-sm"
+                      style={{
+                        ...(editing?.climbId === climb.id && editing?.field === 'sector_tag_id' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
+                      }}
+                    >
                       <div className="h-[24px] flex items-center">
-                        {editing?.profileId === profile.profile_id && editing?.field === 'username' ? (
+                        {editing?.climbId === climb.id && editing?.field === 'sector_tag_id' ? (
                           <input
-                            type="text"
-                            value={editing.value as string || ''}
-                            onChange={(e) => handleInputChange(e.target.value)}
+                            type="number"
+                            value={editing.value as number || ''}
+                            onChange={(e) => handleInputChange(e.target.value ? Number(e.target.value) : null)}
                             onBlur={handleInputBlur}
                             onKeyDown={handleInputKeyDown}
                             autoFocus
-                            className="rounded-lg px-2 py-1 text-sm outline-none w-full max-w-[200px] h-[24px] transition-all duration-150"
+                            className="rounded-lg px-2 py-1 text-sm outline-none w-full max-w-[100px] h-[24px] transition-all duration-150"
                             style={{
                               backgroundColor: 'var(--input-bg)',
                               color: 'var(--foreground)',
@@ -771,69 +753,31 @@ export default function AdminProfilesPage() {
                               borderStyle: 'solid',
                               borderColor: 'var(--accent)',
                             }}
+                            min="1"
+                            step="1"
                           />
                         ) : (
                           <span
-                            onClick={() => startEditing(profile.profile_id, 'username', profile.username)}
+                            onClick={() => startEditing(climb.id, 'sector_tag_id', climb.sector_tag_id)}
                             className="cursor-pointer hover:underline transition-opacity duration-150"
                             title="Click to edit"
                           >
-                            {profile.username || '-'}
+                            {climb.sector_tag_id}
                           </span>
                         )}
                       </div>
                     </td>
                     <td 
                       className="px-2 sm:px-4 py-3 text-xs sm:text-sm"
-                      style={editing?.profileId === profile.profile_id && editing?.field === 'role' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {}}
-                    >
-                      <div className="h-[24px] flex items-center">
-                        {editing?.profileId === profile.profile_id && editing?.field === 'role' ? (
-                          <select
-                            value={editing.value as string || ''}
-                            onChange={(e) => handleInputChange(e.target.value)}
-                            onBlur={handleInputBlur}
-                            onKeyDown={handleInputKeyDown}
-                            autoFocus
-                            className="rounded-lg px-2 py-1 text-sm outline-none h-[24px] transition-all duration-150"
-                            style={{
-                              backgroundColor: 'var(--input-bg)',
-                              color: 'var(--foreground)',
-                              borderWidth: '1px',
-                              borderStyle: 'solid',
-                              borderColor: 'var(--accent)',
-                              cursor: 'pointer',
-                              position: 'relative',
-                              zIndex: 1001,
-                            }}
-                          >
-                            <option value="climber">Climber</option>
-                            <option value="setter">Setter</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        ) : (
-                          <span
-                            onClick={() => startEditing(profile.profile_id, 'role', profile.role)}
-                            className="cursor-pointer hover:underline transition-opacity duration-150 capitalize"
-                            title="Click to edit"
-                          >
-                            {profile.role}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td 
-                      className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden md:table-cell" 
                       style={{
-                        color: 'var(--foreground)',
-                        ...(editing?.profileId === profile.profile_id && editing?.field === 'comp_cohort' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
+                        ...(editing?.climbId === climb.id && editing?.field === 'wall' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
                       }}
                     >
                       <div className="h-[24px] flex items-center">
-                        {editing?.profileId === profile.profile_id && editing?.field === 'comp_cohort' ? (
+                        {editing?.climbId === climb.id && editing?.field === 'wall' ? (
                           <select
-                            value={editing.value as string || ''}
-                            onChange={(e) => handleInputChange(e.target.value)}
+                            value={editing.value as number || ''}
+                            onChange={(e) => handleInputChange(e.target.value ? Number(e.target.value) : null)}
                             onBlur={handleInputBlur}
                             onKeyDown={handleInputKeyDown}
                             autoFocus
@@ -850,33 +794,32 @@ export default function AdminProfilesPage() {
                             }}
                           >
                             <option value="">-</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                            <option value="inclusive">Inclusive</option>
+                            {walls.map(wall => (
+                              <option key={wall.id} value={wall.id}>{wall.name}</option>
+                            ))}
                           </select>
                         ) : (
                           <span
-                            onClick={() => startEditing(profile.profile_id, 'comp_cohort', profile.comp_cohort)}
+                            onClick={() => startEditing(climb.id, 'wall', climb.wall)}
                             className="cursor-pointer hover:underline transition-opacity duration-150"
                             title="Click to edit"
                           >
-                            {profile.comp_cohort || '-'}
+                            {climb.wall_name}
                           </span>
                         )}
                       </div>
                     </td>
                     <td 
-                      className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden lg:table-cell" 
+                      className="px-2 sm:px-4 py-3 text-xs sm:text-sm"
                       style={{
-                        color: 'var(--foreground)',
-                        ...(editing?.profileId === profile.profile_id && editing?.field === 'age_category' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
+                        ...(editing?.climbId === climb.id && editing?.field === 'hold_colour_id' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
                       }}
                     >
                       <div className="h-[24px] flex items-center">
-                        {editing?.profileId === profile.profile_id && editing?.field === 'age_category' ? (
+                        {editing?.climbId === climb.id && editing?.field === 'hold_colour_id' ? (
                           <select
-                            value={editing.value as string || ''}
-                            onChange={(e) => handleInputChange(e.target.value)}
+                            value={editing.value as number || ''}
+                            onChange={(e) => handleInputChange(e.target.value ? Number(e.target.value) : null)}
                             onBlur={handleInputBlur}
                             onKeyDown={handleInputKeyDown}
                             autoFocus
@@ -893,36 +836,32 @@ export default function AdminProfilesPage() {
                             }}
                           >
                             <option value="">-</option>
-                            <option value="u18">U18</option>
-                            <option value="adult">Adult</option>
-                            <option value="masters">Masters</option>
+                            {colours.filter(c => c.usage === 'hold' || c.usage === 'both').map(colour => (
+                              <option key={colour.id} value={colour.id}>{colour.name}</option>
+                            ))}
                           </select>
                         ) : (
                           <span
-                            onClick={() => startEditing(profile.profile_id, 'age_category', profile.age_category)}
+                            onClick={() => startEditing(climb.id, 'hold_colour_id', climb.hold_colour_id)}
                             className="cursor-pointer hover:underline transition-opacity duration-150"
                             title="Click to edit"
                           >
-                            {profile.age_category || '-'}
+                            {climb.hold_colour_name}
                           </span>
                         )}
                       </div>
                     </td>
                     <td 
-                      className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden lg:table-cell" 
+                      className="px-2 sm:px-4 py-3 text-xs sm:text-sm"
                       style={{
-                        color: 'var(--foreground)',
-                        ...(editing?.profileId === profile.profile_id && editing?.field === 'is_junior' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
+                        ...(editing?.climbId === climb.id && editing?.field === 'tag_colour_id' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
                       }}
                     >
                       <div className="h-[24px] flex items-center">
-                        {editing?.profileId === profile.profile_id && editing?.field === 'is_junior' ? (
+                        {editing?.climbId === climb.id && editing?.field === 'tag_colour_id' ? (
                           <select
-                            value={editing.value === true ? 'true' : editing.value === false ? 'false' : ''}
-                            onChange={(e) => {
-                              const val = e.target.value === '' ? null : e.target.value === 'true'
-                              handleInputChange(val)
-                            }}
+                            value={editing.value as number || ''}
+                            onChange={(e) => handleInputChange(e.target.value ? Number(e.target.value) : null)}
                             onBlur={handleInputBlur}
                             onKeyDown={handleInputKeyDown}
                             autoFocus
@@ -939,52 +878,23 @@ export default function AdminProfilesPage() {
                             }}
                           >
                             <option value="">-</option>
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
+                            {colours.filter(c => c.usage === 'tag' || c.usage === 'both').map(colour => (
+                              <option key={colour.id} value={colour.id}>{colour.name}</option>
+                            ))}
                           </select>
                         ) : (
                           <span
-                            onClick={() => startEditing(profile.profile_id, 'is_junior', profile.is_junior)}
+                            onClick={() => startEditing(climb.id, 'tag_colour_id', climb.tag_colour_id)}
                             className="cursor-pointer hover:underline transition-opacity duration-150"
                             title="Click to edit"
                           >
-                            {profile.is_junior === null ? '-' : profile.is_junior ? 'Yes' : 'No'}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden xl:table-cell" style={{ color: 'var(--foreground)' }}>
-                      <div className="h-[24px] flex items-center">
-                        {editing?.profileId === profile.profile_id && editing?.field === 'phone_number' ? (
-                          <input
-                            type="tel"
-                            value={editing.value as string || ''}
-                            onChange={(e) => handleInputChange(e.target.value)}
-                            onBlur={handleInputBlur}
-                            onKeyDown={handleInputKeyDown}
-                            autoFocus
-                            className="rounded-lg px-2 py-1 text-sm outline-none w-full max-w-[150px] h-[24px] transition-all duration-150"
-                            style={{
-                              backgroundColor: 'var(--input-bg)',
-                              color: 'var(--foreground)',
-                              borderWidth: '1px',
-                              borderStyle: 'solid',
-                              borderColor: 'var(--accent)',
-                            }}
-                          />
-                        ) : (
-                          <span
-                            onClick={() => startEditing(profile.profile_id, 'phone_number', profile.phone_number)}
-                            className="cursor-pointer hover:underline transition-opacity duration-150"
-                            title="Click to edit"
-                          >
-                            {profile.phone_number || '-'}
+                            {climb.tag_colour_name}
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
-                      {formatDate(profile.created_at)}
+                      {formatDate(climb.created_at)}
                     </td>
                   </tr>
                 ))}
@@ -995,8 +905,8 @@ export default function AdminProfilesPage() {
           {/* Results count and Pagination */}
           <div className="px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-2" style={{ borderTopWidth: '1px', borderTopColor: 'var(--card-border)' }}>
             <p className="text-xs sm:text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-              Showing {showingStart}-{showingEnd} of {sortedProfiles.length} profile{sortedProfiles.length !== 1 ? 's' : ''}
-              {searchQuery && ` (filtered from ${profiles.length} total)`}
+              Showing {showingStart}-{showingEnd} of {sortedClimbs.length} climb{sortedClimbs.length !== 1 ? 's' : ''}
+              {searchQuery && ` (filtered from ${climbs.length} total)`}
             </p>
             {totalPages > 1 && (
               <Pagination
@@ -1004,7 +914,7 @@ export default function AdminProfilesPage() {
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
                 itemsPerPage={itemsPerPage}
-                totalItems={sortedProfiles.length}
+                totalItems={sortedClimbs.length}
                 showingStart={showingStart}
                 showingEnd={showingEnd}
               />

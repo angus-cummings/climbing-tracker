@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/useUser'
 import { useRole } from '../lib/useRole'
@@ -15,6 +15,8 @@ export function Header() {
   const { theme, toggleTheme } = useTheme()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false)
+  const adminDropdownRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
     try {
@@ -27,6 +29,23 @@ export function Header() {
   }
 
   const canAccessSetters = userRole === 'setter' || userRole === 'admin'
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
+        setAdminDropdownOpen(false)
+      }
+    }
+
+    if (adminDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [adminDropdownOpen])
 
   return (
     <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--border)' }}>
@@ -58,15 +77,67 @@ export function Header() {
               </Link>
             )}
             {userRole === 'admin' && (
-              <Link 
-                href="/profiles/admin" 
-                className="font-medium transition-colors whitespace-nowrap"
-                style={{ color: 'var(--foreground-secondary)' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
-                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
-              >
-                Admin
-              </Link>
+              <div className="relative" ref={adminDropdownRef}>
+                <button
+                  onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
+                  className="font-medium transition-colors whitespace-nowrap flex items-center gap-1"
+                  style={{ color: 'var(--foreground-secondary)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+                  onMouseLeave={(e) => {
+                    if (!adminDropdownOpen) {
+                      e.currentTarget.style.color = 'var(--foreground-secondary)'
+                    }
+                  }}
+                >
+                  Admin
+                  <span style={{ fontSize: '0.75rem' }}>{adminDropdownOpen ? '▲' : '▼'}</span>
+                </button>
+                {adminDropdownOpen && (
+                  <div
+                    className="absolute top-full left-0 mt-1 rounded-lg shadow-lg z-50 min-w-[180px]"
+                    style={{
+                      backgroundColor: 'var(--card-bg)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: 'var(--card-border)',
+                      animation: 'fadeIn 0.2s ease-in-out'
+                    }}
+                  >
+                    <Link
+                      href="/profiles/admin"
+                      className="block px-4 py-2 text-sm transition-colors rounded-t-lg"
+                      style={{ color: 'var(--foreground-secondary)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                        e.currentTarget.style.color = 'var(--foreground)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                        e.currentTarget.style.color = 'var(--foreground-secondary)'
+                      }}
+                      onClick={() => setAdminDropdownOpen(false)}
+                    >
+                      Manage Profiles
+                    </Link>
+                    <Link
+                      href="/climbs/admin"
+                      className="block px-4 py-2 text-sm transition-colors rounded-b-lg"
+                      style={{ color: 'var(--foreground-secondary)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                        e.currentTarget.style.color = 'var(--foreground)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                        e.currentTarget.style.color = 'var(--foreground-secondary)'
+                      }}
+                      onClick={() => setAdminDropdownOpen(false)}
+                    >
+                      Manage Climbs
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
             <Link 
               href="/leaderboard" 

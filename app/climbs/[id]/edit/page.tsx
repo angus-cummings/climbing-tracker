@@ -12,6 +12,7 @@ type ClimbData = {
   hold_colour_id: string
   tag_colour_id: string
   photo: string
+  sector_tag_id: string
 }
 
 type Wall = {
@@ -38,6 +39,7 @@ export default function EditClimbPage() {
     hold_colour_id: '',
     tag_colour_id: '',
     photo: '',
+    sector_tag_id: '',
   })
   const [walls, setWalls] = useState<Wall[]>([])
   const [colours, setColours] = useState<Colour[]>([])
@@ -54,7 +56,7 @@ export default function EditClimbPage() {
       // Load climb data
       const { data: climbData, error: climbError } = await supabase
         .from('climbs')
-        .select('wall, hold_colour_id, tag_colour_id, photo')
+        .select('wall, hold_colour_id, tag_colour_id, photo, sector_tag_id')
         .eq('id', climbId)
         .single()
       
@@ -80,6 +82,7 @@ export default function EditClimbPage() {
           hold_colour_id: String(climbData.hold_colour_id),
           tag_colour_id: String(climbData.tag_colour_id),
           photo: climbData.photo || '',
+          sector_tag_id: climbData.sector_tag_id ? String(climbData.sector_tag_id) : '',
         })
       }
       
@@ -104,20 +107,30 @@ export default function EditClimbPage() {
     }
 
     setLoading(true)
-    const { error: updateError } = await supabase
+    const updateData: any = {
+      wall: Number(form.wall),
+      hold_colour_id: Number(form.hold_colour_id),
+      tag_colour_id: Number(form.tag_colour_id),
+      photo: form.photo || null,
+    }
+    
+    // Only include sector_tag_id if it's provided
+    if (form.sector_tag_id && form.sector_tag_id.trim() !== '') {
+      updateData.sector_tag_id = Number(form.sector_tag_id)
+    }
+    
+    const { data, error: updateError } = await supabase
       .from('climbs')
-      .update({
-        wall: Number(form.wall),
-        hold_colour_id: Number(form.hold_colour_id),
-        tag_colour_id: Number(form.tag_colour_id),
-        photo: form.photo || null,
-      })
+      .update(updateData)
       .eq('id', climbId)
+      .select()
     
     setLoading(false)
 
     if (updateError) {
       setError(updateError.message)
+    } else if (!data || data.length === 0) {
+      setError('Update failed: No rows were updated. This may be due to insufficient permissions or the climb no longer exists.')
     } else {
       setMessage('Climb updated successfully')
       setTimeout(() => {
@@ -278,6 +291,29 @@ export default function EditClimbPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Sector tag ID</label>
+              <input
+                type="number"
+                value={form.sector_tag_id}
+                onChange={e => handleChange('sector_tag_id', e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--foreground)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--input-border)',
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
+                placeholder="Auto-generated if empty"
+              />
+              <p className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
+                The sector tag number displayed on climbs (e.g., #42)
+              </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
