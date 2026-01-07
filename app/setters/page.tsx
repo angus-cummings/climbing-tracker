@@ -10,6 +10,7 @@ type NewClimb = {
   hold_colour_id: string
   tag_colour_id: string
   photo: string
+  sector_tag_id: string
 }
 
 type Gym = {
@@ -37,6 +38,7 @@ export default function SettersPage() {
     hold_colour_id: '',
     tag_colour_id: '',
     photo: '',
+    sector_tag_id: '',
   })
   const [selectedGymId, setSelectedGymId] = useState<number | null>(null)
   const [gyms, setGyms] = useState<Gym[]>([])
@@ -123,8 +125,15 @@ export default function SettersPage() {
       return
     }
 
-    if (!form.wall || !form.hold_colour_id || !form.tag_colour_id) {
-      setError('Wall, hold colour, and tag colour (grade) are required')
+    if (!form.wall || !form.hold_colour_id || !form.tag_colour_id || !form.sector_tag_id) {
+      setError('Wall, hold colour, tag colour (grade), and sector tag ID are required')
+      return
+    }
+
+    // Validate sector_tag_id is a valid positive integer
+    const sectorTagId = Number(form.sector_tag_id)
+    if (isNaN(sectorTagId) || sectorTagId <= 0 || !Number.isInteger(sectorTagId)) {
+      setError('Sector tag ID must be a positive integer')
       return
     }
 
@@ -134,6 +143,7 @@ export default function SettersPage() {
       hold_colour_id: Number(form.hold_colour_id),
       tag_colour_id: Number(form.tag_colour_id),
       photo: form.photo || null,
+      sector_tag_id: Number(form.sector_tag_id),
     })
     setLoading(false)
 
@@ -146,6 +156,7 @@ export default function SettersPage() {
         hold_colour_id: '',
         tag_colour_id: '',
         photo: '',
+        sector_tag_id: '',
       })
       // Keep gym selected, but clear wall
     }
@@ -254,6 +265,33 @@ export default function SettersPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                Sector tag ID
+              </label>
+              <input
+                type="number"
+                value={form.sector_tag_id}
+                onChange={e => handleChange('sector_tag_id', e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--foreground)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--input-border)',
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
+                placeholder="Enter sector tag number (e.g., 42)"
+                min="1"
+                step="1"
+              />
+              <p className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
+                The sector tag number displayed on climbs (e.g., #42)
+              </p>
             </div>
 
             <div className="space-y-1">
