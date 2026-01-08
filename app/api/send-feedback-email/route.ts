@@ -5,9 +5,9 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
-    const { name, feedback, id, created_at } = await request.json()
+    const { name, email, phone, feedback, id, created_at } = await request.json()
 
-    if (!name || !feedback) {
+    if (!name || !feedback || !email) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -41,6 +41,8 @@ export async function POST(request: Request) {
         html: `
           <h2>New Feedback Submission</h2>
           <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+          ${phone ? `<p><strong>Phone:</strong> <a href="tel:${phone}">${phone}</a></p>` : ''}
           <p><strong>Submitted:</strong> ${new Date(created_at).toLocaleString()}</p>
           <p><strong>Feedback ID:</strong> ${id}</p>
           <hr>
@@ -51,6 +53,8 @@ export async function POST(request: Request) {
 New Feedback Submission
 
 Name: ${name}
+Email: ${email}
+${phone ? `Phone: ${phone}` : ''}
 Submitted: ${new Date(created_at).toLocaleString()}
 Feedback ID: ${id}
 
@@ -84,5 +88,6 @@ ${feedback}
     )
   }
 }
+
 
 

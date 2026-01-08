@@ -3,24 +3,51 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
+import { validateEmail, validatePhoneNumber } from '../../lib/validation'
 
 export default function FeedbackPage() {
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [feedback, setFeedback] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setMessage(null)
+    setEmailError(null)
+    setPhoneError(null)
 
+    // Validate name
     if (!name.trim()) {
       setError('Name is required')
       return
     }
 
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.valid) {
+      setEmailError(emailValidation.error || 'Invalid email')
+      setError(emailValidation.error || 'Invalid email')
+      return
+    }
+
+    // Validate phone (optional, but if provided, must be valid)
+    if (phone.trim()) {
+      const phoneValidation = validatePhoneNumber(phone)
+      if (!phoneValidation.valid) {
+        setPhoneError(phoneValidation.error || 'Invalid phone number')
+        setError(phoneValidation.error || 'Invalid phone number')
+        return
+      }
+    }
+
+    // Validate feedback
     if (!feedback.trim()) {
       setError('Feedback is required')
       return
@@ -31,6 +58,8 @@ export default function FeedbackPage() {
       .from('feedback')
       .insert({
         name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || null,
         feedback: feedback.trim(),
       })
 
@@ -41,6 +70,8 @@ export default function FeedbackPage() {
     } else {
       setMessage('Thank you for your feedback!')
       setName('')
+      setEmail('')
+      setPhone('')
       setFeedback('')
     }
   }
@@ -71,7 +102,7 @@ export default function FeedbackPage() {
                 className="mb-1.5 block text-sm font-medium"
                 style={{ color: 'var(--foreground-secondary)' }}
               >
-                Name
+                Name <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
@@ -84,7 +115,7 @@ export default function FeedbackPage() {
                   color: 'var(--foreground)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
+                  borderColor: emailError ? 'rgba(239, 68, 68, 0.5)' : 'var(--input-border)',
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = 'var(--accent)'
@@ -103,7 +134,89 @@ export default function FeedbackPage() {
                 className="mb-1.5 block text-sm font-medium"
                 style={{ color: 'var(--foreground-secondary)' }}
               >
-                Feedback
+                Email <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => {
+                  setEmail(e.target.value)
+                  setEmailError(null)
+                }}
+                placeholder="your.email@example.com"
+                className="w-full rounded-lg px-4 py-2.5 outline-none transition"
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--foreground)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: emailError ? 'rgba(239, 68, 68, 0.5)' : 'var(--input-border)',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent)'
+                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = emailError ? 'rgba(239, 68, 68, 0.5)' : 'var(--input-border)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+                disabled={loading}
+                autoComplete="email"
+              />
+              {emailError && (
+                <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+                  {emailError}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label 
+                className="mb-1.5 block text-sm font-medium"
+                style={{ color: 'var(--foreground-secondary)' }}
+              >
+                Phone Number <span className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>(optional)</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => {
+                  setPhone(e.target.value)
+                  setPhoneError(null)
+                }}
+                placeholder="(555) 123-4567"
+                className="w-full rounded-lg px-4 py-2.5 outline-none transition"
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--foreground)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: phoneError ? 'rgba(239, 68, 68, 0.5)' : 'var(--input-border)',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent)'
+                  e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = phoneError ? 'rgba(239, 68, 68, 0.5)' : 'var(--input-border)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+                disabled={loading}
+                autoComplete="tel"
+              />
+              {phoneError && (
+                <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+                  {phoneError}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label 
+                className="mb-1.5 block text-sm font-medium"
+                style={{ color: 'var(--foreground-secondary)' }}
+              >
+                Feedback <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <textarea
                 value={feedback}

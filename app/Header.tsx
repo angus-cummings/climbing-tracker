@@ -16,7 +16,9 @@ export function Header() {
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false)
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const adminDropdownRef = useRef<HTMLDivElement>(null)
+  const userDropdownRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
     try {
@@ -30,22 +32,25 @@ export function Header() {
 
   const canAccessSetters = userRole === 'setter' || userRole === 'admin'
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
         setAdminDropdownOpen(false)
       }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false)
+      }
     }
 
-    if (adminDropdownOpen) {
+    if (adminDropdownOpen || userDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [adminDropdownOpen])
+  }, [adminDropdownOpen, userDropdownOpen])
 
   return (
     <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--border)' }}>
@@ -181,20 +186,83 @@ export function Header() {
         {loading ? (
           <span className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>Checking session…</span>
         ) : user ? (
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="rounded-lg px-3 py-1.5 font-medium transition-all disabled:opacity-60"
-            style={{
-              backgroundColor: 'var(--button-secondary-bg)',
-              color: 'var(--button-secondary-text)',
-            }}
-            onMouseEnter={(e) => !loggingOut && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)')}
-            onMouseLeave={(e) => !loggingOut && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)')}
-          >
-            {loggingOut ? 'Logging out…' : 'Logout'}
-          </button>
+          <div className="relative" ref={userDropdownRef}>
+            <button
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="rounded-lg px-3 py-1.5 font-medium transition-all flex items-center gap-1.5"
+              style={{
+                backgroundColor: userDropdownOpen ? 'var(--button-secondary-hover)' : 'var(--button-secondary-bg)',
+                color: 'var(--button-secondary-text)',
+              }}
+              onMouseEnter={(e) => {
+                if (!userDropdownOpen) {
+                  e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!userDropdownOpen) {
+                  e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                }
+              }}
+              title="User menu"
+            >
+              <span>👤</span>
+              <span style={{ fontSize: '0.75rem' }}>{userDropdownOpen ? '▲' : '▼'}</span>
+            </button>
+            {userDropdownOpen && (
+              <div
+                className="absolute top-full right-0 mt-1 rounded-lg shadow-lg z-50 min-w-[180px]"
+                style={{
+                  backgroundColor: 'var(--card-bg)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--card-border)',
+                  animation: 'fadeIn 0.2s ease-in-out'
+                }}
+              >
+                <Link
+                  href="/account"
+                  className="block px-4 py-2 text-sm transition-colors rounded-t-lg"
+                  style={{ color: 'var(--foreground-secondary)' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    e.currentTarget.style.color = 'var(--foreground)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = 'var(--foreground-secondary)'
+                  }}
+                  onClick={() => setUserDropdownOpen(false)}
+                >
+                  Account Settings
+                </Link>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setUserDropdownOpen(false)
+                    await handleLogout()
+                  }}
+                  disabled={loggingOut}
+                  className="w-full text-left block px-4 py-2 text-sm transition-colors rounded-b-lg disabled:opacity-60"
+                  style={{ color: 'var(--foreground-secondary)' }}
+                  onMouseEnter={(e) => {
+                    if (!loggingOut) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                      e.currentTarget.style.color = 'var(--foreground)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!loggingOut) {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                      e.currentTarget.style.color = 'var(--foreground-secondary)'
+                    }
+                  }}
+                >
+                  {loggingOut ? 'Logging out…' : 'Logout'}
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <Link
