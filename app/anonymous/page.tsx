@@ -36,6 +36,9 @@ export default function AnonymousPage() {
           id,
           sector_tag_id,
           photo,
+          wall,
+          hold_colour_id,
+          tag_colour_id,
           hold_colour:colours!hold_colour_id (
             id,
             name,
@@ -51,6 +54,10 @@ export default function AnonymousPage() {
             hex_code
           )
         `)
+        .not('wall', 'is', null)
+        .not('hold_colour_id', 'is', null)
+        .not('tag_colour_id', 'is', null)
+        .not('sector_tag_id', 'is', null)
         .order('sector_tag_id', { ascending: true }),
       supabase.from('walls').select('id, name').order('name'),
       supabase.from('colours').select('id, name, hex_code').order('name')

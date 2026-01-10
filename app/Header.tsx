@@ -126,7 +126,7 @@ export function Header() {
                     </Link>
                     <Link
                       href="/climbs/admin"
-                      className="block px-4 py-2 text-sm transition-colors rounded-b-lg"
+                      className="block px-4 py-2 text-sm transition-colors"
                       style={{ color: 'var(--foreground-secondary)' }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
@@ -139,6 +139,22 @@ export function Header() {
                       onClick={() => setAdminDropdownOpen(false)}
                     >
                       Manage Climbs
+                    </Link>
+                    <Link
+                      href="/qr-codes"
+                      className="block px-4 py-2 text-sm transition-colors rounded-b-lg"
+                      style={{ color: 'var(--foreground-secondary)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                        e.currentTarget.style.color = 'var(--foreground)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                        e.currentTarget.style.color = 'var(--foreground-secondary)'
+                      }}
+                      onClick={() => setAdminDropdownOpen(false)}
+                    >
+                      QR Codes
                     </Link>
                   </div>
                 )}

@@ -57,6 +57,9 @@ export default function ClimbsPage() {
           id,
           sector_tag_id,
           photo,
+          wall,
+          hold_colour_id,
+          tag_colour_id,
           hold_colour:colours!hold_colour_id (
             id,
             name,
@@ -72,6 +75,10 @@ export default function ClimbsPage() {
             hex_code
           )
         `)
+        .not('wall', 'is', null)
+        .not('hold_colour_id', 'is', null)
+        .not('tag_colour_id', 'is', null)
+        .not('sector_tag_id', 'is', null)
         .order('sector_tag_id', { ascending: true }),
       // Fetch current profile's ascents separately
       supabase

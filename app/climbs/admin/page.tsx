@@ -712,6 +712,9 @@ export default function AdminClimbsPage() {
                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Created
                   </th>
+                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-secondary)' }}>
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -895,6 +898,21 @@ export default function AdminClimbsPage() {
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                       {formatDate(climb.created_at)}
+                    </td>
+                    <td className="px-2 sm:px-4 py-3">
+                      <button
+                        onClick={() => router.push(`/climbs/${climb.id}/qr`)}
+                        className="px-2 py-1 text-xs font-medium rounded transition"
+                        style={{
+                          backgroundColor: 'var(--accent)',
+                          color: 'var(--accent-text)',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                        title="Print QR code tag"
+                      >
+                        QR Code
+                      </button>
                     </td>
                   </tr>
                 ))}

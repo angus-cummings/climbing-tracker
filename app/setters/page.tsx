@@ -13,6 +13,11 @@ type NewClimb = {
   sector_tag_id: string
 }
 
+type QRCode = {
+  id: string
+  code: string
+}
+
 type Gym = {
   id: number
   name: string
@@ -41,9 +46,11 @@ export default function SettersPage() {
     sector_tag_id: '',
   })
   const [selectedGymId, setSelectedGymId] = useState<number | null>(null)
+  const [selectedQRCode, setSelectedQRCode] = useState<string>('')
   const [gyms, setGyms] = useState<Gym[]>([])
   const [walls, setWalls] = useState<Wall[]>([])
   const [colours, setColours] = useState<Colour[]>([])
+  const [qrCodes, setQRCodes] = useState<QRCode[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
@@ -52,15 +59,22 @@ export default function SettersPage() {
   useEffect(() => {
     const loadOptions = async () => {
       setLoadingOptions(true)
-      const [{ data: gymData }, { data: wallData }, { data: colourData }] = await Promise.all([
+      const [
+        { data: gymData },
+        { data: wallData },
+        { data: colourData },
+        { data: qrCodeData }
+      ] = await Promise.all([
         supabase.from('gyms').select('id, name').order('name'),
         supabase.from('walls').select('id, name, gym').order('name'),
         supabase.from('colours').select('id, name, hex_code, usage'),
+        supabase.from('qr_codes').select('id, code').is('climb_id', null).order('created_at', { ascending: false }),
       ])
 
       setGyms(gymData ?? [])
       setWalls(wallData ?? [])
       setColours(colourData ?? [])
+      setQRCodes(qrCodeData ?? [])
       setLoadingOptions(false)
     }
 
@@ -138,28 +152,54 @@ export default function SettersPage() {
     }
 
     setLoading(true)
-    const { error: insertError } = await supabase.from('climbs').insert({
+    const { data: newClimb, error: insertError } = await supabase.from('climbs').insert({
       wall: Number(form.wall),
       hold_colour_id: Number(form.hold_colour_id),
       tag_colour_id: Number(form.tag_colour_id),
       photo: form.photo || null,
       sector_tag_id: Number(form.sector_tag_id),
-    })
-    setLoading(false)
+    }).select('id').single()
 
     if (insertError) {
+      setLoading(false)
       setError(insertError.message)
-    } else {
-      setMessage('Climb created')
-      setForm({
-        wall: '',
-        hold_colour_id: '',
-        tag_colour_id: '',
-        photo: '',
-        sector_tag_id: '',
-      })
-      // Keep gym selected, but clear wall
+      return
     }
+
+    // If a QR code was selected, assign it to the new climb
+    if (selectedQRCode && newClimb?.id) {
+      const { error: qrError } = await supabase
+        .from('qr_codes')
+        .update({
+          climb_id: newClimb.id,
+          assigned_at: new Date().toISOString()
+        })
+        .eq('id', selectedQRCode)
+
+      if (qrError) {
+        console.error('Failed to assign QR code:', qrError)
+        // Don't fail the whole operation, just log it
+      }
+    }
+
+    setLoading(false)
+    setMessage('Climb created' + (selectedQRCode ? ' and QR code assigned' : ''))
+    setForm({
+      wall: '',
+      hold_colour_id: '',
+      tag_colour_id: '',
+      photo: '',
+      sector_tag_id: '',
+    })
+    setSelectedQRCode('')
+    // Keep gym selected, but clear wall
+    // Reload QR codes to refresh the list
+    const { data: qrCodeData } = await supabase
+      .from('qr_codes')
+      .select('id, code')
+      .is('climb_id', null)
+      .order('created_at', { ascending: false })
+    setQRCodes(qrCodeData ?? [])
   }
 
   const selectedHold = colours.find(c => String(c.id) === form.hold_colour_id)

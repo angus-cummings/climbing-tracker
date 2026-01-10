@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,7 +31,9 @@ export default function LoginPage() {
     if (signInError) {
       setError(signInError.message)
     } else {
-      window.location.href = '/climbs'
+      // Redirect to next parameter or default to /climbs
+      const nextUrl = searchParams?.get('next') || '/climbs'
+      window.location.href = nextUrl
     }
   }
 
@@ -163,5 +167,17 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-[80vh] items-center justify-center px-4 py-6">
+        <div className="text-center">Loading...</div>
+      </main>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
