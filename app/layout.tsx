@@ -4,7 +4,6 @@
 // app/layout.tsx
 import './globals.css'
 import { Header } from './Header'
-import { Footer } from './Footer'
 import { ThemeProvider } from '../lib/ThemeContext'
 import { ProfileProvider } from '../lib/ProfileContext'
 
@@ -19,12 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
         <ThemeProvider>
           <ProfileProvider>
-            <div className="max-w-6xl mx-auto px-4 py-4 sm:p-6 flex flex-col min-h-screen">
+            <div className="max-w-6xl mx-auto p-6">
               <Header />
-              <main className="flex-1">
-                {children}
-              </main>
-              <Footer />
+              {children}
             </div>
           </ProfileProvider>
         </ThemeProvider>

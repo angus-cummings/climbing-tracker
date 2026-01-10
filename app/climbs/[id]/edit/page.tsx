@@ -408,6 +408,24 @@ export default function EditClimbPage() {
 
               <button
                 type="button"
+                onClick={() => router.push(`/climbs/${climbId}/qr`)}
+                disabled={loading}
+                className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
+                style={{
+                  backgroundColor: 'var(--button-secondary-bg)',
+                  color: 'var(--button-secondary-text)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--border)',
+                }}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)')}
+                onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)')}
+              >
+                Print QR Code
+              </button>
+
+              <button
+                type="button"
                 onClick={() => router.push('/climbs')}
                 disabled={loading}
                 className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"

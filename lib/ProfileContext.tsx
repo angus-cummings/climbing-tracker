@@ -104,7 +104,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profileId, error } = await supabase.rpc('create_user_profile', {
         p_user_id: user.id,
-        p_name: profileData.profile_name,
+        p_profile_name: profileData.profile_name,
         p_comp_cohort: profileData.comp_cohort,
         p_age_category: profileData.age_category || null,
         p_is_junior: profileData.is_junior || false,

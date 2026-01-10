@@ -21,7 +21,6 @@ export default function LeaderboardPage() {
   const { selectedProfile } = useProfile()
   const [competitors, setCompetitors] = useState<CompetitorStats[]>([])
   const [filteredCompetitors, setFilteredCompetitors] = useState<CompetitorStats[]>([])
-  const [showFilters, setShowFilters] = useState(false) // Closed by default
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
   const [ageCategoryFilter, setAgeCategoryFilter] = useState<'all' | 'u18' | 'adult' | 'masters'>('all')
   const [loadingData, setLoadingData] = useState(true)
@@ -34,24 +33,14 @@ export default function LeaderboardPage() {
     const fetchLeaderboardData = async () => {
       setLoadingData(true)
       
-      // Fetch all ascents with profile data
-      // Join profiles using profile_id (the new relationship after refactor)
-      // Must specify the foreign key explicitly since there are multiple relationships
-      const { data: ascents, error } = await supabase
-        .from('ascents')
-        .select(`
-          profile_id,
-          sent,
-          profiles!ascents_profile_id_fkey (
-            profile_id,
-            user_id,
-            competitor_number,
-            comp_cohort,
-            age_category
-          )
-        `)
-        .eq('sent', true)
-        .not('profile_id', 'is', null)
+      // Use the leaderboard_stats view for efficient aggregation
+      // This view pre-aggregates sends by profile in the database
+      // Much more efficient than fetching all ascents and aggregating client-side
+      const { data: leaderboardData, error } = await supabase
+        .from('leaderboard_stats')
+        .select('*')
+        .order('total_sends', { ascending: false })
+        .order('competitor_number', { ascending: true, nullsFirst: false })
 
       if (error) {
         console.error('Error fetching leaderboard data:', error)
@@ -59,67 +48,24 @@ export default function LeaderboardPage() {
         return
       }
 
-      // Debug: log what we got
-      console.log('Ascents fetched:', ascents?.length || 0)
-      if (ascents && ascents.length > 0) {
-        console.log('Sample ascent:', ascents[0])
-        console.log('Sample profile:', ascents[0]?.profiles)
-      }
-
-      // Aggregate sends by profile (since multiple profiles can belong to one user)
-      const statsMap = new Map<string, CompetitorStats>()
       
-      ascents?.forEach((ascent: any) => {
-        const profileId = ascent.profile_id
-        // Handle both array and object responses from Supabase
-        const profile = Array.isArray(ascent.profiles) ? ascent.profiles[0] : ascent.profiles
-        if (!profile || !profileId) {
-          console.warn('Missing profile data for ascent:', ascent)
-          return // Skip if profile data is missing
-        }
-        
-        const userId = profile.user_id
-        // Normalize cohort to lowercase for consistent comparison
-        const cohort = (profile.comp_cohort || 'inclusive').toLowerCase()
-        const ageCategory = profile.age_category || null
-        const competitorNumber = profile.competitor_number || null
-        
-        if (statsMap.has(profileId)) {
-          const stats = statsMap.get(profileId)!
-          stats.total_sends += 1
-        } else {
-          statsMap.set(profileId, {
-            competitor_number: competitorNumber,
-            user_id: userId,
-            profile_id: profileId,
-            total_sends: 1,
-            comp_cohort: cohort,
-            age_category: ageCategory,
-            rank: 0 // Will be calculated after sorting
-          })
-        }
-      })
-
-      console.log('Competitors aggregated:', statsMap.size)
-
-      // Convert to array and sort by total sends (descending)
-      // Note: Ranks will be calculated after filtering
-      const competitorsList = Array.from(statsMap.values()).sort(
-        (a, b) => {
-          // First sort by total_sends descending
-          if (b.total_sends !== a.total_sends) {
-            return b.total_sends - a.total_sends
-          }
-          // If tied, sort by competitor_number ascending (lower numbers first)
-          // If no competitor_number, sort by profile_id for consistency
-          const aNum = a.competitor_number ?? Infinity
-          const bNum = b.competitor_number ?? Infinity
-          if (aNum !== bNum) {
-            return aNum - bNum
-          }
-          return a.profile_id.localeCompare(b.profile_id)
-        }
-      )
+      // Convert the view data to CompetitorStats format
+      // The view already has everything aggregated, so we just need to format it
+      const competitorsList: CompetitorStats[] = (leaderboardData || []).map((row: any) => ({
+        competitor_number: row.competitor_number,
+        user_id: row.user_id,
+        profile_id: row.profile_id,
+        total_sends: row.total_sends || 0,
+        comp_cohort: (row.comp_cohort || 'inclusive').toLowerCase(),
+        age_category: row.age_category || null,
+        rank: 0 // Will be calculated after filtering
+      }))
+      
+      // Debug: Show selected profile's stats
+      if (selectedProfile) {
+        const userProfileStats = competitorsList.find(c => c.profile_id === selectedProfile.profile_id)
+        console.log(`[DEBUG] Selected profile (${selectedProfile.profile_id}, #${selectedProfile.competitor_number}) stats:`, userProfileStats)
+      }
 
       setCompetitors(competitorsList)
       setLoadingData(false)
@@ -249,9 +195,9 @@ export default function LeaderboardPage() {
           </div>
         </div>
       )}
-      {/* Filters Section */}
+      {/* Filters */}
       <div 
-        className="mb-4 sm:mb-6 rounded-2xl overflow-hidden"
+        className="mb-4 sm:mb-6 rounded-2xl p-4"
         style={{
           backgroundColor: 'var(--card-bg)',
           borderWidth: '1px',
@@ -259,175 +205,87 @@ export default function LeaderboardPage() {
           borderColor: 'var(--card-border)',
         }}
       >
-        {/* Filters Header - Hamburger Button */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="w-full px-4 py-3 flex items-center justify-between cursor-pointer transition"
-          style={{
-            backgroundColor: 'var(--background-secondary)',
-            borderBottomWidth: showFilters ? '1px' : '0',
-            borderBottomStyle: 'solid',
-            borderBottomColor: 'var(--card-border)',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--background-secondary)'}
-        >
-          <div className="flex items-center gap-3">
-            <svg
-              className="transition-transform"
-              style={{
-                transform: showFilters ? 'rotate(90deg)' : 'rotate(0deg)',
-                width: '20px',
-                height: '20px',
-                fill: 'var(--foreground-secondary)',
-              }}
-              viewBox="0 0 20 20"
-            >
-              <path d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-            </svg>
-            <span className="font-medium" style={{ color: 'var(--foreground)' }}>
-              Filters
-            </span>
-            {(() => {
-              const activeFilters = [
-                cohortFilter !== 'all',
-                ageCategoryFilter !== 'all',
-              ].filter(Boolean).length
-              return activeFilters > 0 ? (
-                <span 
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: 'var(--accent)',
-                    color: 'var(--accent-text)',
-                  }}
-                >
-                  {activeFilters}
-                </span>
-              ) : null
-            })()}
-          </div>
-          <svg
-            className="transition-transform"
-            style={{
-              transform: showFilters ? 'rotate(180deg)' : 'rotate(0deg)',
-              width: '20px',
-              height: '20px',
-              fill: 'var(--foreground-secondary)',
-            }}
-            viewBox="0 0 20 20"
-          >
-            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-          </svg>
-        </button>
-
-        {/* Filters Content - Collapsible */}
-        {showFilters && (
-          <div className="p-4">
-            <div className="space-y-4">
-              {/* Cohort Filter */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
-                  Competition Cohort:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(['all', 'male', 'female', 'inclusive'] as const).map((cohort) => (
-                    <button
-                      key={cohort}
-                      onClick={() => setCohortFilter(cohort)}
-                      className="rounded-lg px-4 py-2 text-sm font-medium transition capitalize"
-                      style={{
-                        backgroundColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--button-secondary-bg)',
-                        color: cohortFilter === cohort ? 'var(--accent-text)' : 'var(--button-secondary-text)',
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--border)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (cohortFilter !== cohort) {
-                          e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (cohortFilter !== cohort) {
-                          e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
-                        }
-                      }}
-                    >
-                      {cohort}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Age Category Filter */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
-                  Age Category:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {([
-                    { value: 'all', label: 'All' },
-                    { value: 'u18', label: 'U18' },
-                    { value: 'adult', label: 'Adult' },
-                    { value: 'masters', label: 'Masters' }
-                  ] as const).map(({ value, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => setAgeCategoryFilter(value)}
-                      className="rounded-lg px-4 py-2 text-sm font-medium transition"
-                      style={{
-                        backgroundColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--button-secondary-bg)',
-                        color: ageCategoryFilter === value ? 'var(--accent-text)' : 'var(--button-secondary-text)',
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--border)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (ageCategoryFilter !== value) {
-                          e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (ageCategoryFilter !== value) {
-                          e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
-                        }
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Clear Filters Button */}
-              <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="space-y-4">
+          {/* Cohort Filter */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
+              Competition Cohort:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {(['all', 'male', 'female', 'inclusive'] as const).map((cohort) => (
                 <button
-                  onClick={() => {
-                    setCohortFilter('all')
-                    setAgeCategoryFilter('all')
-                  }}
-                  className="rounded-lg px-4 py-2 text-sm font-medium transition"
+                  key={cohort}
+                  onClick={() => setCohortFilter(cohort)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition capitalize"
                   style={{
-                    backgroundColor: 'var(--button-secondary-bg)',
-                    color: 'var(--button-secondary-text)',
+                    backgroundColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--button-secondary-bg)',
+                    color: cohortFilter === cohort ? 'var(--accent-text)' : 'var(--button-secondary-text)',
                     borderWidth: '1px',
                     borderStyle: 'solid',
-                    borderColor: 'var(--border)',
+                    borderColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--border)',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'}
+                  onMouseEnter={(e) => {
+                    if (cohortFilter !== cohort) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (cohortFilter !== cohort) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                    }
+                  }}
                 >
-                  Clear filters
+                  {cohort}
                 </button>
-              </div>
-
-              {/* Results Count */}
-              <div className="text-sm pt-2 border-t" style={{ borderColor: 'var(--border)', color: 'var(--foreground-secondary)' }}>
-                Showing {filteredCompetitors.length} competitor{filteredCompetitors.length !== 1 ? 's' : ''}
-              </div>
+              ))}
             </div>
           </div>
-        )}
+
+          {/* Age Category Filter */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
+              Age Category:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { value: 'all', label: 'All' },
+                { value: 'u18', label: 'U18' },
+                { value: 'adult', label: 'Adult' },
+                { value: 'masters', label: 'Masters' }
+              ] as const).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setAgeCategoryFilter(value)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition"
+                  style={{
+                    backgroundColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--button-secondary-bg)',
+                    color: ageCategoryFilter === value ? 'var(--accent-text)' : 'var(--button-secondary-text)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--border)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (ageCategoryFilter !== value) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (ageCategoryFilter !== value) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Results Count */}
+          <div className="text-sm pt-2 border-t" style={{ borderColor: 'var(--border)', color: 'var(--foreground-secondary)' }}>
+            Showing {filteredCompetitors.length} competitor{filteredCompetitors.length !== 1 ? 's' : ''}
+          </div>
+        </div>
       </div>
 
       {/* Leaderboard Table */}
