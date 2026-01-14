@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
+import { useRole } from '../../lib/useRole'
 import { ImageUpload } from '../../components/ImageUpload'
 
 type NewClimb = {
@@ -37,7 +39,9 @@ type Colour = {
 }
 
 export default function SettersPage() {
+  const router = useRouter()
   const { user, loading: authLoading } = useUser()
+  const { role, loading: roleLoading } = useRole()
   const [form, setForm] = useState<NewClimb>({
     wall: '',
     hold_colour_id: '',
@@ -92,7 +96,21 @@ export default function SettersPage() {
     setForm(prev => ({ ...prev, wall: '' }))
   }
 
-  if (authLoading) {
+  // Redirect if not setter or admin
+  useEffect(() => {
+    if (!authLoading && !roleLoading) {
+      if (!user) {
+        router.push('/')
+        return
+      }
+      if (role !== 'setter' && role !== 'admin') {
+        router.push('/climbs')
+        return
+      }
+    }
+  }, [user, role, authLoading, roleLoading, router])
+
+  if (authLoading || roleLoading) {
     return (
       <main className="py-10">
         <p className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
@@ -102,25 +120,10 @@ export default function SettersPage() {
     )
   }
 
-  if (!user) {
+  if (role !== 'setter' && role !== 'admin') {
     return (
-      <main className="py-10">
-        <div 
-          className="rounded-2xl p-6"
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            borderWidth: '1px',
-            borderStyle: 'solid',
-            borderColor: 'var(--card-border)',
-          }}
-        >
-          <h1 className="text-xl font-semibold mb-2" style={{ color: 'var(--foreground)' }}>
-            Setter area
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-            You need to be signed in as a setter or admin to add climbs.
-          </p>
-        </div>
+      <main className="flex min-h-[80vh] items-center justify-center">
+        <p style={{ color: 'var(--foreground-secondary)' }}>Access denied. Setter or admin access required.</p>
       </main>
     )
   }
