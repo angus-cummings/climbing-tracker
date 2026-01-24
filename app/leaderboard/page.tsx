@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
 import { useProfile } from '../../lib/ProfileContext'
+import { useRole } from '../../lib/useRole'
 import { Pagination } from '../../components/Pagination'
 
 type CompetitorStats = {
@@ -14,11 +15,13 @@ type CompetitorStats = {
   comp_cohort: string
   age_category: string | null
   rank: number
+  username: string | null
 }
 
 export default function LeaderboardPage() {
   const { user, loading } = useUser()
   const { selectedProfile } = useProfile()
+  const { role, loading: roleLoading } = useRole()
   const [competitors, setCompetitors] = useState<CompetitorStats[]>([])
   const [filteredCompetitors, setFilteredCompetitors] = useState<CompetitorStats[]>([])
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
@@ -26,9 +29,10 @@ export default function LeaderboardPage() {
   const [loadingData, setLoadingData] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 25
+  const isAdmin = role === 'admin'
 
   useEffect(() => {
-    if (!user) return
+    if (!user || roleLoading) return
 
     const fetchLeaderboardData = async () => {
       setLoadingData(true)
@@ -36,11 +40,13 @@ export default function LeaderboardPage() {
       // Use the leaderboard_stats view for efficient aggregation
       // This view pre-aggregates sends by profile in the database
       // Much more efficient than fetching all ascents and aggregating client-side
-      const { data: leaderboardData, error } = await supabase
+      let query = supabase
         .from('leaderboard_stats')
         .select('*')
         .order('total_sends', { ascending: false })
         .order('competitor_number', { ascending: true, nullsFirst: false })
+
+      const { data: leaderboardData, error } = await query
 
       if (error) {
         console.error('Error fetching leaderboard data:', error)
@@ -48,6 +54,23 @@ export default function LeaderboardPage() {
         return
       }
 
+      // If admin, fetch usernames for all profiles
+      let usernameMap: Record<string, string | null> = {}
+      if (isAdmin && leaderboardData && leaderboardData.length > 0) {
+        const profileIds = leaderboardData.map((row: any) => row.profile_id)
+        if (profileIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('profile_id, username')
+            .in('profile_id', profileIds)
+          
+          if (profilesData) {
+            profilesData.forEach((profile: any) => {
+              usernameMap[profile.profile_id] = profile.username
+            })
+          }
+        }
+      }
       
       // Convert the view data to CompetitorStats format
       // The view already has everything aggregated, so we just need to format it
@@ -58,7 +81,8 @@ export default function LeaderboardPage() {
         total_sends: row.total_sends || 0,
         comp_cohort: (row.comp_cohort || 'inclusive').toLowerCase(),
         age_category: row.age_category || null,
-        rank: 0 // Will be calculated after filtering
+        rank: 0, // Will be calculated after filtering
+        username: isAdmin ? (usernameMap[row.profile_id] || null) : null
       }))
       
       // Debug: Show selected profile's stats
@@ -72,7 +96,7 @@ export default function LeaderboardPage() {
     }
 
     fetchLeaderboardData()
-  }, [user])
+  }, [user, role, roleLoading, selectedProfile])
 
   // Apply cohort and age category filters (case-insensitive) and recalculate ranks
   useEffect(() => {
@@ -127,7 +151,7 @@ export default function LeaderboardPage() {
     console.log('Filtered competitors:', filtered.length, 'for cohort:', cohortFilter, 'age category:', ageCategoryFilter, 'out of', competitors.length, 'total')
   }, [competitors, cohortFilter, ageCategoryFilter])
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <main className="flex min-h-[80vh] items-center justify-center">
         <p style={{ color: 'var(--foreground-secondary)' }}>Loading...</p>
@@ -339,6 +363,14 @@ export default function LeaderboardPage() {
                   >
                     Competitor #
                   </th>
+                  {isAdmin && (
+                    <th 
+                      className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
+                      style={{ color: 'var(--foreground)' }}
+                    >
+                      Name
+                    </th>
+                  )}
                   <th 
                     className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold hidden sm:table-cell"
                     style={{ color: 'var(--foreground)' }}
@@ -451,6 +483,14 @@ export default function LeaderboardPage() {
                           </span>
                         </div>
                       </td>
+                      {isAdmin && (
+                        <td 
+                          className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm"
+                          style={{ color: 'var(--foreground)' }}
+                        >
+                          {competitor.username || '-'}
+                        </td>
+                      )}
                       <td 
                         className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm capitalize hidden sm:table-cell"
                         style={{ color: 'var(--foreground-secondary)' }}
