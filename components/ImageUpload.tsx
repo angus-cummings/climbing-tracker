@@ -36,17 +36,28 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
     setUploading(true)
 
     try {
-      // Compression options
+      // Compression options - more aggressive to ensure files are small enough
       const options = {
-        maxSizeMB: 1, // Maximum file size after compression (1MB)
-        maxWidthOrHeight: 1920, // Maximum width or height (good for web display)
+        maxSizeMB: 0.8, // Maximum file size after compression (800KB - more aggressive)
+        maxWidthOrHeight: 1600, // Maximum width or height (reduced for better compression)
         useWebWorker: true, // Use web worker for better performance
         fileType: 'image/jpeg', // Convert to JPEG for better compression
-        initialQuality: 0.8, // Initial quality (0.8 = 80%)
+        initialQuality: 0.7, // Initial quality (0.7 = 70% - more aggressive compression)
       }
 
       // Compress the image
-      const compressedFile = await imageCompression(file, options)
+      let compressedFile = await imageCompression(file, options)
+      
+      // If still too large, compress again with more aggressive settings
+      if (compressedFile.size > 1024 * 1024) { // If still over 1MB
+        const aggressiveOptions = {
+          ...options,
+          maxSizeMB: 0.5, // Even more aggressive
+          maxWidthOrHeight: 1200,
+          initialQuality: 0.6,
+        }
+        compressedFile = await imageCompression(compressedFile, aggressiveOptions)
+      }
       
       // Log compression stats
       const compressionRatio = ((1 - compressedFile.size / file.size) * 100).toFixed(1)
@@ -107,7 +118,6 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handleFileChange}
             disabled={disabled || uploading}
             className="hidden"
@@ -129,7 +139,7 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
               }
             }}
           >
-            {uploading ? 'Uploading...' : preview ? 'Change photo' : '📷 Choose or take photo'}
+            {uploading ? 'Uploading...' : preview ? 'Change photo' : '📷 Choose photo'}
           </div>
         </label>
 
@@ -188,7 +198,7 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
       )}
 
       <p className="text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-        Images are automatically compressed to save storage. Max 20MB before compression, compressed to ~1MB.
+        Images are automatically compressed to save storage. Max 20MB before compression, compressed to ~800KB or less.
       </p>
     </div>
   )
