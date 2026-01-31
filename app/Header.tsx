@@ -16,7 +16,9 @@ export function Header() {
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false)
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
   const adminDropdownRef = useRef<HTMLDivElement>(null)
+  const accountDropdownRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
     try {
@@ -30,22 +32,26 @@ export function Header() {
 
   const canAccessSetters = userRole === 'setter' || userRole === 'admin'
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (adminDropdownRef.current && !adminDropdownRef.current.contains(target)) {
         setAdminDropdownOpen(false)
+      }
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(target)) {
+        setAccountDropdownOpen(false)
       }
     }
 
-    if (adminDropdownOpen) {
+    if (adminDropdownOpen || accountDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [adminDropdownOpen])
+  }, [adminDropdownOpen, accountDropdownOpen])
 
   return (
     <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--border)' }}>
@@ -213,20 +219,76 @@ export function Header() {
         {loading ? (
           <span className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>Checking session…</span>
         ) : user ? (
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="rounded-lg px-3 py-1.5 font-medium transition-all disabled:opacity-60"
-            style={{
-              backgroundColor: 'var(--button-secondary-bg)',
-              color: 'var(--button-secondary-text)',
-            }}
-            onMouseEnter={(e) => !loggingOut && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)')}
-            onMouseLeave={(e) => !loggingOut && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)')}
-          >
-            {loggingOut ? 'Logging out…' : 'Logout'}
-          </button>
+          <div className="relative" ref={accountDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
+              className="rounded-lg p-2 font-medium transition-all"
+              style={{
+                backgroundColor: accountDropdownOpen ? 'var(--button-secondary-hover)' : 'var(--button-secondary-bg)',
+                color: 'var(--button-secondary-text)',
+              }}
+              onMouseEnter={(e) => !accountDropdownOpen && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)')}
+              onMouseLeave={(e) => !accountDropdownOpen && (e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)')}
+              title="Account"
+              aria-label="Account menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </button>
+            {accountDropdownOpen && (
+              <div
+                className="absolute top-full right-0 mt-1 rounded-lg shadow-lg z-50 min-w-[160px]"
+                style={{
+                  backgroundColor: 'var(--card-bg)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--card-border)',
+                }}
+              >
+                <Link
+                  href="/account"
+                  className="block px-4 py-2 text-sm transition-colors rounded-t-lg"
+                  style={{ color: 'var(--foreground-secondary)' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    e.currentTarget.style.color = 'var(--foreground)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = 'var(--foreground-secondary)'
+                  }}
+                  onClick={() => setAccountDropdownOpen(false)}
+                >
+                  Account
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountDropdownOpen(false)
+                    handleLogout()
+                  }}
+                  disabled={loggingOut}
+                  className="block w-full text-left px-4 py-2 text-sm transition-colors rounded-b-lg disabled:opacity-60"
+                  style={{ color: 'var(--foreground-secondary)' }}
+                  onMouseEnter={(e) => {
+                    if (!loggingOut) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                      e.currentTarget.style.color = 'var(--foreground)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = 'var(--foreground-secondary)'
+                  }}
+                >
+                  {loggingOut ? 'Logging out…' : 'Logout'}
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <Link
