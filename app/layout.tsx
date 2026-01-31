@@ -4,6 +4,7 @@
 // app/layout.tsx
 import './globals.css'
 import { Header } from './Header'
+import { Footer } from './Footer'
 import { ThemeProvider } from '../lib/ThemeContext'
 import { ProfileProvider } from '../lib/ProfileContext'
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="max-w-6xl mx-auto p-6">
               <Header />
               {children}
+              <Footer />
             </div>
           </ProfileProvider>
         </ThemeProvider>
