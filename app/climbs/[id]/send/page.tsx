@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { useUser } from '../../../../lib/useUser'
@@ -162,11 +163,13 @@ export default function SendClimbPage() {
             <>
               {/* Climb Photo */}
               {climbData.photo && (
-                <div className="mb-4 rounded-lg overflow-hidden">
-                  <img
+                <div className="mb-4 rounded-lg overflow-hidden relative w-full h-48">
+                  <Image
                     src={climbData.photo}
                     alt="Climb"
-                    className="w-full h-48 object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 400px"
+                    className="object-cover"
                   />
                 </div>
               )}

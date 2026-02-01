@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
 import { useRole } from '../../lib/useRole'
 import { useProfile } from '../../lib/ProfileContext'
+import Image from 'next/image'
 import { ImageModal } from '../../components/ImageModal'
 import { ConfirmationModal } from '../../components/ConfirmationModal'
 
@@ -678,11 +679,15 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
               e.currentTarget.style.opacity = '1'
             }}
           >
-            <img
+            <Image
               src={climb.photo}
               alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
+              width={80}
+              height={60}
+              sizes="80px"
               className="w-full h-full object-cover"
               draggable={false}
+              loading="lazy"
             />
           </div>
         )}

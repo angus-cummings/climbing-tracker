@@ -38,23 +38,23 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
     try {
       // Compression options - more aggressive to ensure files are small enough
       const options = {
-        maxSizeMB: 0.8, // Maximum file size after compression (800KB - more aggressive)
-        maxWidthOrHeight: 1600, // Maximum width or height (reduced for better compression)
-        useWebWorker: true, // Use web worker for better performance
-        fileType: 'image/jpeg', // Convert to JPEG for better compression
-        initialQuality: 0.7, // Initial quality (0.7 = 70% - more aggressive compression)
+        maxSizeMB: 0.5, // Target ~500KB to reduce storage and egress
+        maxWidthOrHeight: 1200, // Sufficient for climb photos, reduces bytes
+        useWebWorker: true,
+        fileType: 'image/jpeg',
+        initialQuality: 0.65,
       }
 
       // Compress the image
       let compressedFile = await imageCompression(file, options)
       
       // If still too large, compress again with more aggressive settings
-      if (compressedFile.size > 1024 * 1024) { // If still over 1MB
+      if (compressedFile.size > 800 * 1024) { // If still over ~800KB
         const aggressiveOptions = {
           ...options,
-          maxSizeMB: 0.5, // Even more aggressive
-          maxWidthOrHeight: 1200,
-          initialQuality: 0.6,
+          maxSizeMB: 0.35,
+          maxWidthOrHeight: 1000,
+          initialQuality: 0.55,
         }
         compressedFile = await imageCompression(compressedFile, aggressiveOptions)
       }
@@ -71,7 +71,7 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
       const { error: uploadError } = await supabase.storage
         .from('climbs')
         .upload(filePath, compressedFile, {
-          cacheControl: '3600',
+          cacheControl: '31536000', // 1 year – filenames are unique so immutable
           upsert: false,
           contentType: 'image/jpeg'
         })
@@ -198,7 +198,7 @@ export function ImageUpload({ onUploadComplete, currentImageUrl, disabled }: Ima
       )}
 
       <p className="text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-        Images are automatically compressed to save storage. Max 20MB before compression, compressed to ~800KB or less.
+        Images are automatically compressed to save storage and bandwidth. Max 20MB before compression, target ~500KB or less.
       </p>
     </div>
   )

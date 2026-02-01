@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import Image from 'next/image'
 import { ImageModal } from '../../components/ImageModal'
 import { validateCompetitorNumber } from '../../lib/validation'
 
@@ -267,11 +268,15 @@ export default function AnonymousPage() {
                         }}
                         onClick={() => setSelectedImage(climb.photo)}
                       >
-                        <img
+                        <Image
                           src={climb.photo}
                           alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
+                          width={80}
+                          height={60}
+                          sizes="80px"
                           className="w-full h-full object-cover"
                           draggable={false}
+                          loading="lazy"
                         />
                       </div>
                     )}
