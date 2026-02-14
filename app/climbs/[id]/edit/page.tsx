@@ -13,6 +13,7 @@ type ClimbData = {
   tag_colour_id: string
   photo: string
   sector_tag_id: string
+  archived: boolean
 }
 
 type Wall = {
@@ -40,6 +41,7 @@ export default function EditClimbPage() {
     tag_colour_id: '',
     photo: '',
     sector_tag_id: '',
+    archived: false,
   })
   const [walls, setWalls] = useState<Wall[]>([])
   const [colours, setColours] = useState<Colour[]>([])
@@ -56,7 +58,7 @@ export default function EditClimbPage() {
       // Load climb data
       const { data: climbData, error: climbError } = await supabase
         .from('climbs')
-        .select('wall, hold_colour_id, tag_colour_id, photo, sector_tag_id')
+        .select('wall, hold_colour_id, tag_colour_id, photo, sector_tag_id, archived')
         .eq('id', climbId)
         .single()
       
@@ -83,6 +85,7 @@ export default function EditClimbPage() {
           tag_colour_id: String(climbData.tag_colour_id),
           photo: climbData.photo || '',
           sector_tag_id: climbData.sector_tag_id ? String(climbData.sector_tag_id) : '',
+          archived: !!(climbData as any).archived,
         })
       }
       
@@ -92,8 +95,8 @@ export default function EditClimbPage() {
     loadData()
   }, [climbId])
 
-  const handleChange = (field: keyof ClimbData, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }))
+  const handleChange = (field: keyof ClimbData, value: string | boolean) => {
+    setForm(prev => ({ ...prev, [field]: value } as ClimbData))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,6 +115,7 @@ export default function EditClimbPage() {
       hold_colour_id: Number(form.hold_colour_id),
       tag_colour_id: Number(form.tag_colour_id),
       photo: form.photo || null,
+      archived: form.archived,
     }
     
     // Only include sector_tag_id if it's provided
@@ -379,6 +383,34 @@ export default function EditClimbPage() {
                     Selected: {selectedTag.name}
                   </p>
                 )}
+              </div>
+            </div>
+
+            <div
+              className="rounded-lg px-3 py-2 flex items-start gap-3 cursor-pointer transition"
+              style={{
+                backgroundColor: 'var(--input-bg)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'var(--input-border)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--input-bg)')}
+            >
+              <input
+                type="checkbox"
+                checked={form.archived}
+                onChange={(e) => handleChange('archived', e.target.checked)}
+                className="h-4 w-4 rounded mt-0.5"
+                style={{ accentColor: 'var(--accent)' }}
+              />
+              <div>
+                <p className="text-sm" style={{ color: 'var(--foreground)' }}>
+                  Archived
+                </p>
+                <p className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
+                  Archived climbs can be viewed but cannot be marked as sent.
+                </p>
               </div>
             </div>
 

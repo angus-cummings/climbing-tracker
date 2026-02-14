@@ -48,6 +48,7 @@ export default function SendClimbPage() {
           .select(`
             sector_tag_id,
             photo,
+            archived,
             walls!wall(name),
             hold_colour:colours!hold_colour_id(name),
             tag_colour:colours!tag_colour_id(name)
@@ -59,6 +60,11 @@ export default function SendClimbPage() {
 
         // Type assertion needed because Supabase joins can be arrays or objects
         const climbData = data as any
+        if (climbData.archived) {
+          setError('This climb is archived and can no longer be marked as sent.')
+          setLoading(false)
+          return
+        }
 
         setClimbData({
           sector_tag_id: climbData.sector_tag_id,

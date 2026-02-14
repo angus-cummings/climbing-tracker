@@ -59,6 +59,7 @@ export default function ClimbsPage() {
           sector_tag_id,
           photo,
           wall,
+          archived,
           hold_colour_id,
           tag_colour_id,
           hold_colour:colours!hold_colour_id (
@@ -648,9 +649,10 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
   const ascent = climb.ascents?.[0]
   const canEdit = userRole === 'setter' || userRole === 'admin'
   const isSent = ascent?.sent
+  const isArchived = !!climb.archived
 
   const handleSend = async () => {
-    if (onMarkAsSent) {
+    if (onMarkAsSent && !isArchived) {
       await onMarkAsSent(climb.id)
     }
   }
@@ -706,6 +708,21 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
                 # {climb.sector_tag_id}
               </span>
             )}
+            {isArchived && (
+              <span
+                className="text-xs px-2 py-0.5 rounded"
+                style={{
+                  color: 'var(--foreground-secondary)',
+                  backgroundColor: 'var(--background-secondary)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--border)',
+                }}
+                title="View only – cannot be marked as sent"
+              >
+                Archived
+              </span>
+            )}
             <div className="text-xs sm:text-sm font-medium" style={{ color: 'var(--foreground)' }}>
               Grade: {climb.tag_colour.name}
             </div>
@@ -718,7 +735,9 @@ function ClimbRow({ climb, user, userRole, showPhoto, onImageClick, selectedProf
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
-        {isSent ? (
+        {isArchived ? (
+          <span className="text-xs sm:text-sm" style={{ color: 'var(--foreground-secondary)' }}>View only</span>
+        ) : isSent ? (
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm" style={{ color: 'var(--accent)', fontWeight: 500 }}>✓ Sent</span>
             <button

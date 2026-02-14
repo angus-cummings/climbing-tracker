@@ -12,6 +12,9 @@ type CompetitorStats = {
   user_id: string
   profile_id: string
   total_sends: number
+  total_points: number
+  pumpfest_sends: number
+  pumpfest_points: number
   comp_cohort: string
   age_category: string | null
   rank: number
@@ -26,6 +29,7 @@ export default function LeaderboardPage() {
   const [filteredCompetitors, setFilteredCompetitors] = useState<CompetitorStats[]>([])
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
   const [ageCategoryFilter, setAgeCategoryFilter] = useState<'all' | 'u18' | 'adult' | 'masters'>('all')
+  const [leaderboardMode, setLeaderboardMode] = useState<'overall' | 'pumpfest'>('overall')
   const [loadingData, setLoadingData] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 25
@@ -38,12 +42,11 @@ export default function LeaderboardPage() {
       setLoadingData(true)
       
       // Use the leaderboard_stats view for efficient aggregation
-      // This view pre-aggregates sends by profile in the database
-      // Much more efficient than fetching all ascents and aggregating client-side
+      // This view pre-aggregates sends and points by profile in the database
       let query = supabase
         .from('leaderboard_stats')
         .select('*')
-        .order('total_sends', { ascending: false })
+        .order('total_points', { ascending: false })
         .order('competitor_number', { ascending: true, nullsFirst: false })
 
       const { data: leaderboardData, error } = await query
@@ -79,6 +82,9 @@ export default function LeaderboardPage() {
         user_id: row.user_id,
         profile_id: row.profile_id,
         total_sends: row.total_sends || 0,
+        total_points: row.total_points || 0,
+        pumpfest_sends: row.pumpfest_sends || 0,
+        pumpfest_points: row.pumpfest_points || 0,
         comp_cohort: (row.comp_cohort || 'inclusive').toLowerCase(),
         age_category: row.age_category || null,
         rank: 0, // Will be calculated after filtering
@@ -98,7 +104,7 @@ export default function LeaderboardPage() {
     fetchLeaderboardData()
   }, [user, role, roleLoading, selectedProfile])
 
-  // Apply cohort and age category filters (case-insensitive) and recalculate ranks
+  // Apply cohort and age category filters (case-insensitive), leaderboard mode, and recalculate ranks
   useEffect(() => {
     let filtered: CompetitorStats[] = [...competitors] // Create a copy to avoid mutating original
     
@@ -111,12 +117,20 @@ export default function LeaderboardPage() {
     if (ageCategoryFilter !== 'all') {
       filtered = filtered.filter(c => c.age_category?.toLowerCase() === ageCategoryFilter.toLowerCase())
     }
+
+    // Apply Pumpfest-only filter when in Pumpfest mode
+    if (leaderboardMode === 'pumpfest') {
+      filtered = filtered.filter(c => c.pumpfest_points > 0)
+    }
     
-    // Re-sort the filtered list (in case filters changed the order)
+    // Re-sort the filtered list (in case filters or mode changed the order)
     filtered.sort((a, b) => {
-      // First sort by total_sends descending
-      if (b.total_sends !== a.total_sends) {
-        return b.total_sends - a.total_sends
+      const aScore = leaderboardMode === 'pumpfest' ? a.pumpfest_points : a.total_points
+      const bScore = leaderboardMode === 'pumpfest' ? b.pumpfest_points : b.total_points
+
+      // First sort by score descending
+      if (bScore !== aScore) {
+        return bScore - aScore
       }
       // If tied, sort by competitor_number ascending (lower numbers first)
       const aNum = a.competitor_number ?? Infinity
@@ -136,7 +150,9 @@ export default function LeaderboardPage() {
         competitor.rank = 1
       } else {
         const prevCompetitor = filtered[index - 1]
-        if (competitor.total_sends === prevCompetitor.total_sends) {
+        const competitorScore = leaderboardMode === 'pumpfest' ? competitor.pumpfest_points : competitor.total_points
+        const prevScore = leaderboardMode === 'pumpfest' ? prevCompetitor.pumpfest_points : prevCompetitor.total_points
+        if (competitorScore === prevScore) {
           // Tied with previous competitor - same rank
           competitor.rank = prevCompetitor.rank
         } else {
@@ -147,9 +163,21 @@ export default function LeaderboardPage() {
     })
     
     setFilteredCompetitors(filtered)
-    setCurrentPage(1) // Reset to first page when filters change
-    console.log('Filtered competitors:', filtered.length, 'for cohort:', cohortFilter, 'age category:', ageCategoryFilter, 'out of', competitors.length, 'total')
-  }, [competitors, cohortFilter, ageCategoryFilter])
+    setCurrentPage(1) // Reset to first page when filters or mode change
+    console.log(
+      'Filtered competitors:',
+      filtered.length,
+      'mode:',
+      leaderboardMode,
+      'cohort:',
+      cohortFilter,
+      'age category:',
+      ageCategoryFilter,
+      'out of',
+      competitors.length,
+      'total'
+    )
+  }, [competitors, cohortFilter, ageCategoryFilter, leaderboardMode])
 
   if (loading || roleLoading) {
     return (
@@ -202,10 +230,12 @@ export default function LeaderboardPage() {
             </div>
             <div>
               <div className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-                Your Total Sends
+                {leaderboardMode === 'pumpfest' ? 'Your Pumpfest Points' : 'Your Total Points'}
               </div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>
-                {filteredCompetitors.find(c => c.profile_id === selectedProfile?.profile_id)?.total_sends ?? 0}
+                {leaderboardMode === 'pumpfest'
+                  ? filteredCompetitors.find(c => c.profile_id === selectedProfile?.profile_id)?.pumpfest_points ?? 0
+                  : filteredCompetitors.find(c => c.profile_id === selectedProfile?.profile_id)?.total_points ?? 0}
               </div>
             </div>
             <div>
@@ -213,13 +243,15 @@ export default function LeaderboardPage() {
                 Top Score
               </div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--foreground)' }}>
-                {filteredCompetitors[0]?.total_sends || 0}
+                {leaderboardMode === 'pumpfest'
+                  ? filteredCompetitors[0]?.pumpfest_points || 0
+                  : filteredCompetitors[0]?.total_points || 0}
               </div>
             </div>
           </div>
         </div>
       )}
-      {/* Filters */}
+      {/* Mode + Filters */}
       <div 
         className="mb-4 sm:mb-6 rounded-2xl p-4"
         style={{
@@ -230,6 +262,44 @@ export default function LeaderboardPage() {
         }}
       >
         <div className="space-y-4">
+          {/* Leaderboard Mode */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
+              View:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { value: 'overall', label: 'Overall (All Climbs)' },
+                { value: 'pumpfest', label: 'Pumpfest Only' },
+              ] as const).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setLeaderboardMode(value)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition"
+                  style={{
+                    backgroundColor: leaderboardMode === value ? 'var(--accent)' : 'var(--button-secondary-bg)',
+                    color: leaderboardMode === value ? 'var(--accent-text)' : 'var(--button-secondary-text)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: leaderboardMode === value ? 'var(--accent)' : 'var(--border)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (leaderboardMode !== value) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (leaderboardMode !== value) {
+                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Cohort Filter */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
@@ -381,7 +451,7 @@ export default function LeaderboardPage() {
                     className="text-right px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
                     style={{ color: 'var(--foreground)' }}
                   >
-                    Sends
+                    {leaderboardMode === 'pumpfest' ? 'Pumpfest Points' : 'Points'}
                   </th>
                 </tr>
               </thead>
@@ -504,7 +574,7 @@ export default function LeaderboardPage() {
                           fontWeight: isCurrentUser ? 700 : 600,
                         }}
                       >
-                        {competitor.total_sends}
+                        {leaderboardMode === 'pumpfest' ? competitor.pumpfest_points : competitor.total_points}
                       </td>
                     </tr>
                   )

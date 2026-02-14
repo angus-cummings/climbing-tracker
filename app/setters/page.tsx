@@ -128,8 +128,8 @@ export default function SettersPage() {
     )
   }
 
-  const handleChange = (field: keyof NewClimb, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }))
+  const handleChange = (field: keyof NewClimb, value: string | boolean) => {
+    setForm(prev => ({ ...prev, [field]: value } as NewClimb))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
