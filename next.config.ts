@@ -6,6 +6,8 @@ const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : null;
 
 const nextConfig: NextConfig = {
   images: {
+    // 31 days — reduces Vercel Image Transformation usage by serving from cache longer
+    minimumCacheTTL: 7776000 /* seconds in 90 days */,
     ...(supabaseHost && {
       remotePatterns: [
         {
