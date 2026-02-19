@@ -38,6 +38,7 @@ export default function ClimbsPage() {
   const [colours, setColours] = useState<Colour[]>([])
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [unsendClimbId, setUnsendClimbId] = useState<string | null>(null)
+  const [archivedSectionExpanded, setArchivedSectionExpanded] = useState(false)
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false) // Closed by default
@@ -207,47 +208,44 @@ export default function ClimbsPage() {
   }, [selectedProfile, user, updateClimbSentStatus])
 
 
-  // Group climbs by wall and sort by sector_tag_id
-  const groupedClimbs = filteredClimbs.reduce((acc, climb) => {
-    const wallId = climb.wall.id
-    if (!acc[wallId]) {
-      acc[wallId] = {
-        wall: climb.wall,
-        climbs: []
-      }
-    }
-    acc[wallId].climbs.push(climb)
-    return acc
-  }, {} as Record<number, { wall: any, climbs: any[] }>)
+  // Split into unarchived and archived
+  const unarchivedClimbs = filteredClimbs.filter(c => !c.archived)
+  const archivedClimbs = filteredClimbs.filter(c => !!c.archived)
 
-  // Sort climbs within each wall group by sector_tag_id
-  const wallGroups: Array<{ wall: any, climbs: any[] }> = (Object.values(groupedClimbs) as Array<{ wall: any, climbs: any[] }>).map((group) => {
-    const sortedClimbs = [...group.climbs].sort((a, b) => {
-      // Sort by sector_tag_id if available, otherwise by id
-      const aTag = a.sector_tag_id ?? a.id
-      const bTag = b.sector_tag_id ?? b.id
-      
-      // Handle string comparison
-      if (typeof aTag === 'string' && typeof bTag === 'string') {
-        return aTag.localeCompare(bTag, undefined, { numeric: true, sensitivity: 'base' })
+  // Helper: group climbs by wall and sort by sector_tag_id
+  const buildWallGroups = (climbList: any[]) => {
+    const grouped = climbList.reduce((acc, climb) => {
+      const wallId = climb.wall.id
+      if (!acc[wallId]) {
+        acc[wallId] = {
+          wall: climb.wall,
+          climbs: []
+        }
       }
-      
-      // Handle numeric comparison
-      if (typeof aTag === 'number' && typeof bTag === 'number') {
-        return aTag - bTag
-      }
-      
-      // Handle mixed types: convert both to strings for consistent comparison
-      // This prevents NaN issues when mixing strings and numbers
-      const aStr = String(aTag)
-      const bStr = String(bTag)
-      return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
+      acc[wallId].climbs.push(climb)
+      return acc
+    }, {} as Record<number, { wall: any, climbs: any[] }>)
+
+    return (Object.values(grouped) as Array<{ wall: any, climbs: any[] }>).map((group) => {
+      const sortedClimbs = [...group.climbs].sort((a, b) => {
+        const aTag = a.sector_tag_id ?? a.id
+        const bTag = b.sector_tag_id ?? b.id
+        if (typeof aTag === 'string' && typeof bTag === 'string') {
+          return aTag.localeCompare(bTag, undefined, { numeric: true, sensitivity: 'base' })
+        }
+        if (typeof aTag === 'number' && typeof bTag === 'number') {
+          return aTag - bTag
+        }
+        const aStr = String(aTag)
+        const bStr = String(bTag)
+        return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
+      })
+      return { wall: group.wall, climbs: sortedClimbs }
     })
-    return {
-      wall: group.wall,
-      climbs: sortedClimbs
-    }
-  })
+  }
+
+  const wallGroups = buildWallGroups(unarchivedClimbs)
+  const archivedWallGroups = buildWallGroups(archivedClimbs)
 
   if (!user || !selectedProfile) return <p>Loading…</p>
 
@@ -529,6 +527,7 @@ export default function ClimbsPage() {
         </div>
       ) : (
         <div className="grid gap-4">
+          {/* Unarchived climbs per wall */}
           {wallGroups.map(group => (
             <WallCard 
               key={group.wall.id} 
@@ -543,6 +542,72 @@ export default function ClimbsPage() {
               onUnsendClick={setUnsendClimbId}
             />
           ))}
+
+          {/* Top-level Archived dropdown: Archived > <wall> > <climb> */}
+          {archivedWallGroups.length > 0 && (
+            <div 
+              className="rounded-2xl shadow overflow-hidden"
+              style={{
+                backgroundColor: 'var(--card-bg)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'var(--card-border)',
+              }}
+            >
+              <button
+                onClick={() => setArchivedSectionExpanded(!archivedSectionExpanded)}
+                className="w-full px-4 py-3 flex items-center justify-between cursor-pointer transition"
+                style={{
+                  backgroundColor: 'var(--background-secondary)',
+                  borderBottomWidth: archivedSectionExpanded ? '1px' : '0',
+                  borderBottomStyle: 'solid',
+                  borderBottomColor: 'var(--card-border)',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--background-secondary)'}
+              >
+                <div className="text-left">
+                  <h3 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
+                    Archived
+                  </h3>
+                  <p className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
+                    {archivedClimbs.length} {archivedClimbs.length === 1 ? 'climb' : 'climbs'} across {archivedWallGroups.length} {archivedWallGroups.length === 1 ? 'wall' : 'walls'}
+                  </p>
+                </div>
+                <svg
+                  className="transition-transform"
+                  style={{
+                    transform: archivedSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    width: '20px',
+                    height: '20px',
+                    fill: 'var(--foreground-secondary)',
+                  }}
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
+              </button>
+
+              {archivedSectionExpanded && (
+                <div className="p-4 grid gap-4">
+                  {archivedWallGroups.map(group => (
+                    <WallCard 
+                      key={`archived-${group.wall.id}`} 
+                      wall={group.wall}
+                      climbs={group.climbs}
+                      user={user} 
+                      userRole={userRole} 
+                      showPhoto={showPhotos}
+                      onImageClick={setSelectedImage}
+                      selectedProfile={selectedProfile}
+                      onMarkAsSent={markClimbAsSent}
+                      onUnsendClick={setUnsendClimbId}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
