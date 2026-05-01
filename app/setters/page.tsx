@@ -11,6 +11,7 @@ type NewClimb = {
   wall: string
   hold_colour_id: string
   tag_colour_id: string
+  rope_grade: string
   photo: string
   sector_tag_id: string
 }
@@ -29,6 +30,7 @@ type Wall = {
   id: number
   name: string
   gym: number | null
+  wall_type: 'boulder' | 'rope'
 }
 
 type Colour = {
@@ -38,14 +40,21 @@ type Colour = {
   usage?: 'hold' | 'tag' | 'both'
 }
 
+type RopeGrade = {
+  id: number
+  sort_order: number
+}
+
 export default function SettersPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useUser()
   const { role, loading: roleLoading } = useRole()
+  const [climbType, setClimbType] = useState<'route' | 'boulder'>('route')
   const [form, setForm] = useState<NewClimb>({
     wall: '',
     hold_colour_id: '',
     tag_colour_id: '',
+    rope_grade: '',
     photo: '',
     sector_tag_id: '',
   })
@@ -54,6 +63,7 @@ export default function SettersPage() {
   const [gyms, setGyms] = useState<Gym[]>([])
   const [walls, setWalls] = useState<Wall[]>([])
   const [colours, setColours] = useState<Colour[]>([])
+  const [ropeGrades, setRopeGrades] = useState<RopeGrade[]>([])
   const [qrCodes, setQRCodes] = useState<QRCode[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingOptions, setLoadingOptions] = useState(true)
@@ -67,30 +77,52 @@ export default function SettersPage() {
         { data: gymData },
         { data: wallData },
         { data: colourData },
+        { data: ropeGradeData },
         { data: qrCodeData }
       ] = await Promise.all([
         supabase.from('gyms').select('id, name').order('name'),
-        supabase.from('walls').select('id, name, gym').order('name'),
+        supabase.from('walls').select('id, name, gym, wall_type').order('name'),
         supabase.from('colours').select('id, name, hex_code, usage'),
+        supabase.from('rope_grades').select('id, sort_order').order('sort_order'),
         supabase.from('qr_codes').select('id, code').is('climb_id', null).order('created_at', { ascending: false }),
       ])
 
-      setGyms(gymData ?? [])
+      const gymsLoaded = gymData ?? []
+      setGyms(gymsLoaded)
       setWalls(wallData ?? [])
       setColours(colourData ?? [])
+      setRopeGrades(ropeGradeData ?? [])
       setQRCodes(qrCodeData ?? [])
+
+      // Default to Hobart for the initial route selection
+      const hobart = gymsLoaded.find(g => g.name === 'Hobart')
+      if (hobart) setSelectedGymId(hobart.id)
+
       setLoadingOptions(false)
     }
 
     loadOptions()
   }, [])
 
-  // Filter walls by selected gym
-  const filteredWalls = selectedGymId 
-    ? walls.filter(wall => wall.gym === selectedGymId)
+  const handleClimbTypeSelect = (type: 'route' | 'boulder') => {
+    setClimbType(type)
+    setForm(prev => ({ ...prev, wall: '', tag_colour_id: '', rope_grade: '' }))
+
+    if (type === 'route') {
+      const hobart = gyms.find(g => g.name === 'Hobart')
+      setSelectedGymId(hobart?.id ?? null)
+    } else {
+      setSelectedGymId(null)
+    }
+  }
+
+  const filteredWalls = selectedGymId
+    ? walls.filter(w =>
+        w.gym === selectedGymId &&
+        w.wall_type === (climbType === 'route' ? 'rope' : 'boulder')
+      )
     : []
 
-  // Clear wall selection when gym changes
   const handleGymSelect = (gymId: number) => {
     setSelectedGymId(gymId)
     setForm(prev => ({ ...prev, wall: '' }))
@@ -142,12 +174,18 @@ export default function SettersPage() {
       return
     }
 
-    if (!form.wall || !form.hold_colour_id || !form.tag_colour_id || !form.sector_tag_id) {
-      setError('Wall, hold colour, tag colour (grade), and sector tag ID are required')
-      return
+    if (climbType === 'boulder') {
+      if (!form.wall || !form.hold_colour_id || !form.tag_colour_id || !form.sector_tag_id) {
+        setError('Wall, hold colour, tag colour (grade), and sector tag ID are required')
+        return
+      }
+    } else {
+      if (!form.wall || !form.hold_colour_id || !form.rope_grade || !form.sector_tag_id) {
+        setError('Wall, hold colour, grade, and sector tag ID are required')
+        return
+      }
     }
 
-    // Validate sector_tag_id is a valid positive integer
     const sectorTagId = Number(form.sector_tag_id)
     if (isNaN(sectorTagId) || sectorTagId <= 0 || !Number.isInteger(sectorTagId)) {
       setError('Sector tag ID must be a positive integer')
@@ -155,13 +193,30 @@ export default function SettersPage() {
     }
 
     setLoading(true)
-    const { data: newClimb, error: insertError } = await supabase.from('climbs').insert({
-      wall: Number(form.wall),
-      hold_colour_id: Number(form.hold_colour_id),
-      tag_colour_id: Number(form.tag_colour_id),
-      photo: form.photo || null,
-      sector_tag_id: Number(form.sector_tag_id),
-    }).select('id').single()
+
+    const insertPayload = climbType === 'boulder'
+      ? {
+          climb_type: 'boulder' as const,
+          wall: Number(form.wall),
+          hold_colour_id: Number(form.hold_colour_id),
+          tag_colour_id: Number(form.tag_colour_id),
+          photo: form.photo || null,
+          sector_tag_id: sectorTagId,
+        }
+      : {
+          climb_type: 'rope' as const,
+          wall: Number(form.wall),
+          hold_colour_id: Number(form.hold_colour_id),
+          rope_grade: Number(form.rope_grade),
+          photo: form.photo || null,
+          sector_tag_id: sectorTagId,
+        }
+
+    const { data: newClimb, error: insertError } = await supabase
+      .from('climbs')
+      .insert(insertPayload)
+      .select('id')
+      .single()
 
     if (insertError) {
       setLoading(false)
@@ -169,7 +224,6 @@ export default function SettersPage() {
       return
     }
 
-    // If a QR code was selected, assign it to the new climb
     if (selectedQRCode && newClimb?.id) {
       const { error: qrError } = await supabase
         .from('qr_codes')
@@ -181,7 +235,6 @@ export default function SettersPage() {
 
       if (qrError) {
         console.error('Failed to assign QR code:', qrError)
-        // Don't fail the whole operation, just log it
       }
     }
 
@@ -191,12 +244,12 @@ export default function SettersPage() {
       wall: '',
       hold_colour_id: '',
       tag_colour_id: '',
+      rope_grade: '',
       photo: '',
       sector_tag_id: '',
     })
     setSelectedQRCode('')
-    // Keep gym selected, but clear wall
-    // Reload QR codes to refresh the list
+
     const { data: qrCodeData } = await supabase
       .from('qr_codes')
       .select('id, code')
@@ -207,6 +260,15 @@ export default function SettersPage() {
 
   const selectedHold = colours.find(c => String(c.id) === form.hold_colour_id)
   const selectedTag = colours.find(c => String(c.id) === form.tag_colour_id)
+
+  const buttonBase = 'flex-1 min-w-[120px] rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition'
+  const buttonStyle = (active: boolean) => ({
+    backgroundColor: active ? 'var(--accent)' : 'var(--button-secondary-bg)',
+    color: active ? 'var(--accent-text)' : 'var(--button-secondary-text)',
+    borderWidth: '1px',
+    borderStyle: 'solid' as const,
+    borderColor: active ? 'var(--accent)' : 'var(--border)',
+  })
 
   return (
     <main className="py-4 sm:py-8 px-4 sm:px-0">
@@ -220,7 +282,7 @@ export default function SettersPage() {
           </p>
         </div>
 
-        <div 
+        <div
           className="rounded-2xl p-4 sm:p-6 shadow"
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -236,7 +298,7 @@ export default function SettersPage() {
           )}
 
           {error && (
-            <div 
+            <div
               className="mb-4 rounded-lg px-3 py-2 text-sm"
               style={{
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -251,7 +313,7 @@ export default function SettersPage() {
           )}
 
           {message && (
-            <div 
+            <div
               className="mb-4 rounded-lg px-3 py-2 text-sm"
               style={{
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -265,10 +327,35 @@ export default function SettersPage() {
             </div>
           )}
 
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-4"
-          >
+          <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Climb type toggle */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                Type
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(['route', 'boulder'] as const).map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => handleClimbTypeSelect(type)}
+                    className={buttonBase}
+                    style={buttonStyle(climbType === type)}
+                    onMouseEnter={(e) => {
+                      if (climbType !== type) e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (climbType !== type) e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
+                    }}
+                  >
+                    {type === 'route' ? 'Route' : 'Boulder'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Gym selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 Gym
@@ -278,30 +365,17 @@ export default function SettersPage() {
                   <button
                     key={gym.id}
                     type="button"
-                    onClick={() => handleGymSelect(gym.id)}
-                    className="flex-1 min-w-[120px] rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition"
-                    style={{
-                      backgroundColor: selectedGymId === gym.id 
-                        ? 'var(--accent)' 
-                        : 'var(--button-secondary-bg)',
-                      color: selectedGymId === gym.id 
-                        ? 'var(--accent-text)' 
-                        : 'var(--button-secondary-text)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: selectedGymId === gym.id 
-                        ? 'var(--accent)' 
-                        : 'var(--border)',
-                    }}
+                    onClick={() => climbType === 'boulder' && handleGymSelect(gym.id)}
+                    disabled={climbType === 'route'}
+                    className={`${buttonBase} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    style={buttonStyle(selectedGymId === gym.id)}
                     onMouseEnter={(e) => {
-                      if (selectedGymId !== gym.id) {
+                      if (climbType === 'boulder' && selectedGymId !== gym.id)
                         e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
-                      }
                     }}
                     onMouseLeave={(e) => {
-                      if (selectedGymId !== gym.id) {
+                      if (climbType === 'boulder' && selectedGymId !== gym.id)
                         e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
-                      }
                     }}
                   >
                     {gym.name}
@@ -310,6 +384,7 @@ export default function SettersPage() {
               </div>
             </div>
 
+            {/* Sector tag ID */}
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 Sector tag ID
@@ -337,6 +412,7 @@ export default function SettersPage() {
               </p>
             </div>
 
+            {/* Wall */}
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 Wall
@@ -367,6 +443,7 @@ export default function SettersPage() {
               </select>
             </div>
 
+            {/* Hold colour + grade */}
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
@@ -403,40 +480,72 @@ export default function SettersPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                  Tag colour (grade)
-                </label>
-                <select
-                  value={form.tag_colour_id}
-                  onChange={e => handleChange('tag_colour_id', e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
-                  style={{
-                    backgroundColor: 'var(--input-bg)',
-                    color: 'var(--foreground)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: 'var(--input-border)',
-                  }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
-                >
-                  <option value="">Select a tag colour / grade</option>
-                  {colours
-                    .filter(c => c.usage === 'tag' || c.usage === 'both' || !c.usage)
-                    .map(colour => (
-                      <option key={colour.id} value={colour.id}>
-                        {colour.name}
-                      </option>
-                    ))}
-                </select>
-                {selectedTag && (
-                  <p className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
-                    Selected: {selectedTag.name}
-                  </p>
+                {climbType === 'boulder' ? (
+                  <>
+                    <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                      Tag colour (grade)
+                    </label>
+                    <select
+                      value={form.tag_colour_id}
+                      onChange={e => handleChange('tag_colour_id', e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+                      style={{
+                        backgroundColor: 'var(--input-bg)',
+                        color: 'var(--foreground)',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: 'var(--input-border)',
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
+                    >
+                      <option value="">Select a tag colour / grade</option>
+                      {colours
+                        .filter(c => c.usage === 'tag' || c.usage === 'both' || !c.usage)
+                        .map(colour => (
+                          <option key={colour.id} value={colour.id}>
+                            {colour.name}
+                          </option>
+                        ))}
+                    </select>
+                    {selectedTag && (
+                      <p className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>
+                        Selected: {selectedTag.name}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                      Grade
+                    </label>
+                    <select
+                      value={form.rope_grade}
+                      onChange={e => handleChange('rope_grade', e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+                      style={{
+                        backgroundColor: 'var(--input-bg)',
+                        color: 'var(--foreground)',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: 'var(--input-border)',
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
+                    >
+                      <option value="">Select a grade</option>
+                      {ropeGrades.map(grade => (
+                        <option key={grade.id} value={grade.id}>
+                          {grade.id}
+                        </option>
+                      ))}
+                    </select>
+                  </>
                 )}
               </div>
             </div>
 
+            {/* Climb photo */}
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 Climb photo
@@ -469,4 +578,3 @@ export default function SettersPage() {
     </main>
   )
 }
-

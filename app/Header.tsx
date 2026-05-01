@@ -62,14 +62,23 @@ export function Header() {
         {!loading && user && (
           <>
             <ProfileSelector />
-            <Link 
-              href="/climbs" 
+            <Link
+              href="/climbs"
               className="font-medium transition-colors whitespace-nowrap"
               style={{ color: 'var(--foreground-secondary)' }}
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
             >
               Climbs
+            </Link>
+            <Link
+              href="/archived"
+              className="font-medium transition-colors whitespace-nowrap"
+              style={{ color: 'var(--foreground-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+            >
+              Archived
             </Link>
             {canAccessSetters && (
               <Link 
@@ -124,6 +133,22 @@ export function Header() {
                       onClick={() => setAdminDropdownOpen(false)}
                     >
                       Manage Profiles
+                    </Link>
+                    <Link
+                      href="/competitions/admin"
+                      className="block px-4 py-2 text-sm transition-colors"
+                      style={{ color: 'var(--foreground-secondary)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
+                        e.currentTarget.style.color = 'var(--foreground)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                        e.currentTarget.style.color = 'var(--foreground-secondary)'
+                      }}
+                      onClick={() => setAdminDropdownOpen(false)}
+                    >
+                      Manage Competitions
                     </Link>
                     <Link
                       href="/climbs/admin"

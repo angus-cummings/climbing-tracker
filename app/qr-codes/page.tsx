@@ -78,6 +78,7 @@ export default function QRCodesPage() {
       const climbs = []
       for (let i = 0; i < count; i++) {
         climbs.push({
+          climb_type: 'boulder',
           wall: null,
           hold_colour_id: null,
           tag_colour_id: null,

@@ -7,6 +7,12 @@ import { useProfile } from '../../lib/ProfileContext'
 import { useRole } from '../../lib/useRole'
 import { Pagination } from '../../components/Pagination'
 
+type Competition = {
+  id: number
+  name: string
+  is_current: boolean
+}
+
 type CompetitorStats = {
   competitor_number: number | null
   user_id: string
@@ -25,6 +31,8 @@ export default function LeaderboardPage() {
   const { user, loading } = useUser()
   const { selectedProfile } = useProfile()
   const { role, loading: roleLoading } = useRole()
+  const [competitions, setCompetitions] = useState<Competition[]>([])
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null | undefined>(undefined) // undefined = not yet initialised
   const [competitors, setCompetitors] = useState<CompetitorStats[]>([])
   const [filteredCompetitors, setFilteredCompetitors] = useState<CompetitorStats[]>([])
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
@@ -35,21 +43,32 @@ export default function LeaderboardPage() {
   const itemsPerPage = 25
   const isAdmin = role === 'admin'
 
+  // Fetch competitions once and initialise the selected competition to the current one
   useEffect(() => {
-    if (!user || roleLoading) return
+    if (!user) return
+    supabase
+      .from('competitions')
+      .select('id, name, is_current')
+      .order('name')
+      .then(({ data }) => {
+        const comps = data ?? []
+        setCompetitions(comps)
+        const current = comps.find(c => c.is_current)
+        setSelectedCompetitionId(current?.id ?? null)
+      })
+  }, [user])
+
+  // Fetch leaderboard data whenever the selected competition changes
+  useEffect(() => {
+    if (!user || roleLoading || selectedCompetitionId === undefined) return
 
     const fetchLeaderboardData = async () => {
       setLoadingData(true)
-      
-      // Use the leaderboard_stats view for efficient aggregation
-      // This view pre-aggregates sends and points by profile in the database
-      let query = supabase
-        .from('leaderboard_stats')
-        .select('*')
+
+      const { data: leaderboardData, error } = await supabase
+        .rpc('leaderboard_stats', { p_competition_id: selectedCompetitionId })
         .order('total_points', { ascending: false })
         .order('competitor_number', { ascending: true, nullsFirst: false })
-
-      const { data: leaderboardData, error } = await query
 
       if (error) {
         console.error('Error fetching leaderboard data:', error)
@@ -57,7 +76,6 @@ export default function LeaderboardPage() {
         return
       }
 
-      // If admin, fetch usernames for all profiles
       let usernameMap: Record<string, string | null> = {}
       if (isAdmin && leaderboardData && leaderboardData.length > 0) {
         const profileIds = leaderboardData.map((row: any) => row.profile_id)
@@ -66,7 +84,6 @@ export default function LeaderboardPage() {
             .from('profiles')
             .select('profile_id, username')
             .in('profile_id', profileIds)
-          
           if (profilesData) {
             profilesData.forEach((profile: any) => {
               usernameMap[profile.profile_id] = profile.username
@@ -74,9 +91,7 @@ export default function LeaderboardPage() {
           }
         }
       }
-      
-      // Convert the view data to CompetitorStats format
-      // The view already has everything aggregated, so we just need to format it
+
       const competitorsList: CompetitorStats[] = (leaderboardData || []).map((row: any) => ({
         competitor_number: row.competitor_number,
         user_id: row.user_id,
@@ -87,96 +102,54 @@ export default function LeaderboardPage() {
         pumpfest_points: row.pumpfest_points || 0,
         comp_cohort: (row.comp_cohort || 'inclusive').toLowerCase(),
         age_category: row.age_category || null,
-        rank: 0, // Will be calculated after filtering
+        rank: 0,
         username: isAdmin ? (usernameMap[row.profile_id] || null) : null
       }))
-      
-      // Debug: Show selected profile's stats
-      if (selectedProfile) {
-        const userProfileStats = competitorsList.find(c => c.profile_id === selectedProfile.profile_id)
-        console.log(`[DEBUG] Selected profile (${selectedProfile.profile_id}, #${selectedProfile.competitor_number}) stats:`, userProfileStats)
-      }
 
       setCompetitors(competitorsList)
       setLoadingData(false)
     }
 
     fetchLeaderboardData()
-  }, [user, role, roleLoading, selectedProfile])
+  }, [user, role, roleLoading, selectedCompetitionId])
 
-  // Apply cohort and age category filters (case-insensitive), leaderboard mode, and recalculate ranks
+  // Apply cohort / age / mode filters and recalculate ranks
   useEffect(() => {
-    let filtered: CompetitorStats[] = [...competitors] // Create a copy to avoid mutating original
-    
-    // Apply cohort filter
+    let filtered: CompetitorStats[] = [...competitors]
+
     if (cohortFilter !== 'all') {
       filtered = filtered.filter(c => c.comp_cohort?.toLowerCase() === cohortFilter.toLowerCase())
     }
-    
-    // Apply age category filter
     if (ageCategoryFilter !== 'all') {
       filtered = filtered.filter(c => c.age_category?.toLowerCase() === ageCategoryFilter.toLowerCase())
     }
-
-    // Apply Pumpfest-only filter when in Pumpfest mode
     if (leaderboardMode === 'pumpfest') {
       filtered = filtered.filter(c => c.pumpfest_points > 0)
     }
-    
-    // Re-sort the filtered list (in case filters or mode changed the order)
+
     filtered.sort((a, b) => {
       const aScore = leaderboardMode === 'pumpfest' ? a.pumpfest_points : a.total_points
       const bScore = leaderboardMode === 'pumpfest' ? b.pumpfest_points : b.total_points
-
-      // First sort by score descending
-      if (bScore !== aScore) {
-        return bScore - aScore
-      }
-      // If tied, sort by competitor_number ascending (lower numbers first)
+      if (bScore !== aScore) return bScore - aScore
       const aNum = a.competitor_number ?? Infinity
       const bNum = b.competitor_number ?? Infinity
-      if (aNum !== bNum) {
-        return aNum - bNum
-      }
+      if (aNum !== bNum) return aNum - bNum
       return a.profile_id.localeCompare(b.profile_id)
     })
-    
-    // Recalculate ranks based on filtered results
-    // If multiple competitors have the same score, they get the same rank
-    // The next competitor gets a rank that skips the tied positions
+
     filtered.forEach((competitor, index) => {
       if (index === 0) {
-        // First place always gets rank 1
         competitor.rank = 1
       } else {
-        const prevCompetitor = filtered[index - 1]
-        const competitorScore = leaderboardMode === 'pumpfest' ? competitor.pumpfest_points : competitor.total_points
-        const prevScore = leaderboardMode === 'pumpfest' ? prevCompetitor.pumpfest_points : prevCompetitor.total_points
-        if (competitorScore === prevScore) {
-          // Tied with previous competitor - same rank
-          competitor.rank = prevCompetitor.rank
-        } else {
-          // Different score - rank is current position (1-indexed)
-          competitor.rank = index + 1
-        }
+        const prev = filtered[index - 1]
+        const score = leaderboardMode === 'pumpfest' ? competitor.pumpfest_points : competitor.total_points
+        const prevScore = leaderboardMode === 'pumpfest' ? prev.pumpfest_points : prev.total_points
+        competitor.rank = score === prevScore ? prev.rank : index + 1
       }
     })
-    
+
     setFilteredCompetitors(filtered)
-    setCurrentPage(1) // Reset to first page when filters or mode change
-    console.log(
-      'Filtered competitors:',
-      filtered.length,
-      'mode:',
-      leaderboardMode,
-      'cohort:',
-      cohortFilter,
-      'age category:',
-      ageCategoryFilter,
-      'out of',
-      competitors.length,
-      'total'
-    )
+    setCurrentPage(1)
   }, [competitors, cohortFilter, ageCategoryFilter, leaderboardMode])
 
   if (loading || roleLoading) {
@@ -195,7 +168,6 @@ export default function LeaderboardPage() {
     )
   }
 
-  // Calculate pagination
   const totalPages = Math.ceil(filteredCompetitors.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
@@ -203,14 +175,19 @@ export default function LeaderboardPage() {
   const showingStart = filteredCompetitors.length > 0 ? startIndex + 1 : 0
   const showingEnd = Math.min(endIndex, filteredCompetitors.length)
 
+  const selectedCompetitionName = selectedCompetitionId == null
+    ? 'All time'
+    : competitions.find(c => c.id === selectedCompetitionId)?.name ?? ''
+
   return (
     <main className="px-0 py-4 sm:py-8">
       <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6" style={{ color: 'var(--foreground)' }}>
         Competitor Leaderboard
       </h2>
-      {/* Additional Stats */}
+
+      {/* Stats summary */}
       {!loadingData && filteredCompetitors.length > 0 && (
-        <div 
+        <div
           className="mb-4 sm:mb-6 rounded-2xl p-4"
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -221,9 +198,7 @@ export default function LeaderboardPage() {
         >
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <div>
-              <div className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-                Your Rank
-              </div>
+              <div className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>Your Rank</div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>
                 {filteredCompetitors.find(c => c.profile_id === selectedProfile?.profile_id)?.rank ?? '-'}
               </div>
@@ -239,9 +214,7 @@ export default function LeaderboardPage() {
               </div>
             </div>
             <div>
-              <div className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
-                Top Score
-              </div>
+              <div className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>Top Score</div>
               <div className="text-2xl font-bold mt-1" style={{ color: 'var(--foreground)' }}>
                 {leaderboardMode === 'pumpfest'
                   ? filteredCompetitors[0]?.pumpfest_points || 0
@@ -251,8 +224,9 @@ export default function LeaderboardPage() {
           </div>
         </div>
       )}
-      {/* Mode + Filters */}
-      <div 
+
+      {/* Filters */}
+      <div
         className="mb-4 sm:mb-6 rounded-2xl p-4"
         style={{
           backgroundColor: 'var(--card-bg)',
@@ -262,7 +236,36 @@ export default function LeaderboardPage() {
         }}
       >
         <div className="space-y-4">
-          {/* Leaderboard Mode */}
+
+          {/* Competition selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
+              Competition:
+            </label>
+            <select
+              value={selectedCompetitionId == null ? '' : String(selectedCompetitionId)}
+              onChange={(e) => setSelectedCompetitionId(e.target.value === '' ? null : Number(e.target.value))}
+              className="rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--foreground)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'var(--input-border)',
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onBlur={(e) => e.currentTarget.style.borderColor = 'var(--input-border)'}
+            >
+              {competitions.map(comp => (
+                <option key={comp.id} value={String(comp.id)}>
+                  {comp.name}{comp.is_current ? ' (current)' : ''}
+                </option>
+              ))}
+              <option value="">All time</option>
+            </select>
+          </div>
+
+          {/* View mode */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
               View:
@@ -283,16 +286,8 @@ export default function LeaderboardPage() {
                     borderStyle: 'solid',
                     borderColor: leaderboardMode === value ? 'var(--accent)' : 'var(--border)',
                   }}
-                  onMouseEnter={(e) => {
-                    if (leaderboardMode !== value) {
-                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (leaderboardMode !== value) {
-                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
-                    }
-                  }}
+                  onMouseEnter={(e) => { if (leaderboardMode !== value) e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)' }}
+                  onMouseLeave={(e) => { if (leaderboardMode !== value) e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)' }}
                 >
                   {label}
                 </button>
@@ -300,7 +295,7 @@ export default function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Cohort Filter */}
+          {/* Cohort filter */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
               Competition Cohort:
@@ -318,16 +313,8 @@ export default function LeaderboardPage() {
                     borderStyle: 'solid',
                     borderColor: cohortFilter === cohort ? 'var(--accent)' : 'var(--border)',
                   }}
-                  onMouseEnter={(e) => {
-                    if (cohortFilter !== cohort) {
-                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (cohortFilter !== cohort) {
-                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
-                    }
-                  }}
+                  onMouseEnter={(e) => { if (cohortFilter !== cohort) e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)' }}
+                  onMouseLeave={(e) => { if (cohortFilter !== cohort) e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)' }}
                 >
                   {cohort}
                 </button>
@@ -335,7 +322,7 @@ export default function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Age Category Filter */}
+          {/* Age category filter */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
               Age Category:
@@ -358,16 +345,8 @@ export default function LeaderboardPage() {
                     borderStyle: 'solid',
                     borderColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--border)',
                   }}
-                  onMouseEnter={(e) => {
-                    if (ageCategoryFilter !== value) {
-                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (ageCategoryFilter !== value) {
-                      e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'
-                    }
-                  }}
+                  onMouseEnter={(e) => { if (ageCategoryFilter !== value) e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)' }}
+                  onMouseLeave={(e) => { if (ageCategoryFilter !== value) e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)' }}
                 >
                   {label}
                 </button>
@@ -375,16 +354,15 @@ export default function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Results Count */}
           <div className="text-sm pt-2 border-t" style={{ borderColor: 'var(--border)', color: 'var(--foreground-secondary)' }}>
-            Showing {filteredCompetitors.length} competitor{filteredCompetitors.length !== 1 ? 's' : ''}
+            {selectedCompetitionName} — {filteredCompetitors.length} competitor{filteredCompetitors.length !== 1 ? 's' : ''}
           </div>
         </div>
       </div>
 
-      {/* Leaderboard Table */}
+      {/* Table */}
       {loadingData ? (
-        <div 
+        <div
           className="rounded-2xl p-8 text-center"
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -396,7 +374,7 @@ export default function LeaderboardPage() {
           <p style={{ color: 'var(--foreground-secondary)' }}>Loading leaderboard...</p>
         </div>
       ) : filteredCompetitors.length === 0 ? (
-        <div 
+        <div
           className="rounded-2xl p-8 text-center"
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -408,7 +386,7 @@ export default function LeaderboardPage() {
           <p style={{ color: 'var(--foreground-secondary)' }}>No competitors in this cohort yet</p>
         </div>
       ) : (
-        <div 
+        <div
           className="rounded-2xl overflow-hidden"
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -421,155 +399,84 @@ export default function LeaderboardPage() {
             <table className="w-full">
               <thead>
                 <tr style={{ backgroundColor: 'var(--background-secondary)' }}>
-                  <th 
-                    className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
-                    style={{ color: 'var(--foreground)' }}
-                  >
-                    Rank
-                  </th>
-                  <th 
-                    className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
-                    style={{ color: 'var(--foreground)' }}
-                  >
-                    Competitor #
-                  </th>
+                  <th className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Rank</th>
+                  <th className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Competitor #</th>
                   {isAdmin && (
-                    <th 
-                      className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
-                      style={{ color: 'var(--foreground)' }}
-                    >
-                      Name
-                    </th>
+                    <th className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Name</th>
                   )}
-                  <th 
-                    className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold hidden sm:table-cell"
-                    style={{ color: 'var(--foreground)' }}
-                  >
-                    Cohort
-                  </th>
-                  <th 
-                    className="text-right px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold"
-                    style={{ color: 'var(--foreground)' }}
-                  >
+                  <th className="text-left px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold hidden sm:table-cell" style={{ color: 'var(--foreground)' }}>Cohort</th>
+                  <th className="text-right px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
                     {leaderboardMode === 'pumpfest' ? 'Pumpfest Points' : 'Points'}
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedCompetitors.map((competitor, index) => {
+                {paginatedCompetitors.map((competitor) => {
                   const isCurrentUser = competitor.profile_id === selectedProfile?.profile_id
                   return (
                     <tr
                       key={competitor.profile_id}
                       className="transition"
                       style={{
-                        backgroundColor: isCurrentUser 
-                          ? 'rgba(var(--accent-rgb, 59, 130, 246), 0.1)' 
-                          : 'transparent',
+                        backgroundColor: isCurrentUser ? 'rgba(var(--accent-rgb, 59, 130, 246), 0.1)' : 'transparent',
                         borderTopWidth: '1px',
                         borderTopStyle: 'solid',
                         borderTopColor: 'var(--border)',
                       }}
-                      onMouseEnter={(e) => {
-                        if (!isCurrentUser) {
-                          e.currentTarget.style.backgroundColor = 'var(--background-secondary)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isCurrentUser) {
-                          e.currentTarget.style.backgroundColor = 'transparent'
-                        }
-                      }}
+                      onMouseEnter={(e) => { if (!isCurrentUser) e.currentTarget.style.backgroundColor = 'var(--background-secondary)' }}
+                      onMouseLeave={(e) => { if (!isCurrentUser) e.currentTarget.style.backgroundColor = 'transparent' }}
                     >
-                      <td 
-                        className="px-3 sm:px-6 py-3 sm:py-4"
-                        style={{ color: 'var(--foreground-secondary)' }}
-                      >
+                      <td className="px-3 sm:px-6 py-3 sm:py-4" style={{ color: 'var(--foreground-secondary)' }}>
                         <div className="flex items-center gap-2">
-                          <span className="text-base sm:text-lg font-bold">
-                            {competitor.rank}
-                          </span>
+                          <span className="text-base sm:text-lg font-bold">{competitor.rank}</span>
                           {(() => {
                             const rank1Count = filteredCompetitors.filter(c => c.rank === 1).length
                             const rank2Count = filteredCompetitors.filter(c => c.rank === 2).length
-                            
-                            // Rank 1: Always gold (all people at rank 1 get gold)
-                            if (competitor.rank === 1) {
-                              return <span className="text-xl">🥇</span>
+                            if (competitor.rank === 1) return <span className="text-xl">🥇</span>
+                            const medalsShown = rank1Count
+                            if (competitor.rank === 2 && medalsShown < 3) {
+                              return <span className="text-xl">{rank1Count === 1 ? '🥈' : '🥉'}</span>
                             }
-                            
-                            // Calculate total medals shown so far
-                            let medalsShown = rank1Count // All rank 1 get gold
-                            
-                            // Rank 2: Silver if rank 1 has 1 person, bronze if rank 1 has 2+ people
-                            if (competitor.rank === 2) {
-                              if (medalsShown < 3) {
-                                if (rank1Count === 1) {
-                                  return <span className="text-xl">🥈</span>
-                                } else {
-                                  return <span className="text-xl">🥉</span>
-                                }
-                              }
+                            if (competitor.rank === 3 && medalsShown + (rank2Count > 0 ? 1 : 0) < 3) {
+                              return <span className="text-xl">🥉</span>
                             }
-                            
-                            // Rank 3: Bronze only if we haven't shown 3+ medals yet
-                            if (competitor.rank === 3) {
-                              medalsShown += (rank2Count > 0 ? 1 : 0) // Add rank 2 medals
-                              if (medalsShown < 3) {
-                                return <span className="text-xl">🥉</span>
-                              }
-                            }
-                            
                             return null
                           })()}
                         </div>
                       </td>
-                      <td 
+                      <td
                         className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm"
-                        style={{ 
+                        style={{
                           color: isCurrentUser ? 'var(--accent)' : 'var(--foreground)',
                           fontWeight: isCurrentUser ? 600 : 400
                         }}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                          {competitor.competitor_number !== null ? (
-                            <span className="font-semibold">#{competitor.competitor_number}</span>
-                          ) : (
-                            <span className="text-xs opacity-60 italic">No number</span>
-                          )}
+                          {competitor.competitor_number !== null
+                            ? <span className="font-semibold">#{competitor.competitor_number}</span>
+                            : <span className="text-xs opacity-60 italic">No number</span>}
                           {isCurrentUser && (
-                            <span 
+                            <span
                               className="text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-sans font-semibold"
-                              style={{
-                                backgroundColor: 'var(--accent)',
-                                color: 'var(--accent-text)',
-                              }}
+                              style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-text)' }}
                             >
                               YOU
                             </span>
                           )}
-                          <span className="text-xs sm:hidden capitalize opacity-75">
-                            {competitor.comp_cohort}
-                          </span>
+                          <span className="text-xs sm:hidden capitalize opacity-75">{competitor.comp_cohort}</span>
                         </div>
                       </td>
                       {isAdmin && (
-                        <td 
-                          className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm"
-                          style={{ color: 'var(--foreground)' }}
-                        >
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm" style={{ color: 'var(--foreground)' }}>
                           {competitor.username || '-'}
                         </td>
                       )}
-                      <td 
-                        className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm capitalize hidden sm:table-cell"
-                        style={{ color: 'var(--foreground-secondary)' }}
-                      >
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm capitalize hidden sm:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                         {competitor.comp_cohort}
                       </td>
-                      <td 
+                      <td
                         className="px-3 sm:px-6 py-3 sm:py-4 text-right text-sm sm:text-base"
-                        style={{ 
+                        style={{
                           color: isCurrentUser ? 'var(--accent)' : 'var(--foreground)',
                           fontWeight: isCurrentUser ? 700 : 600,
                         }}
@@ -582,8 +489,7 @@ export default function LeaderboardPage() {
               </tbody>
             </table>
           </div>
-          
-          {/* Pagination */}
+
           {totalPages > 1 && (
             <Pagination
               currentPage={currentPage}

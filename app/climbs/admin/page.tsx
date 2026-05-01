@@ -14,6 +14,7 @@ type Climb = {
   wall: number
   hold_colour_id: number
   tag_colour_id: number
+  climb_type: string
   photo: string | null
   created_at: string
   wall_name?: string
@@ -92,6 +93,7 @@ export default function AdminClimbsPage() {
             wall,
             hold_colour_id,
             tag_colour_id,
+            climb_type,
             photo,
             created_at,
             walls!wall(id, name),
@@ -109,6 +111,7 @@ export default function AdminClimbsPage() {
           wall: climb.wall,
           hold_colour_id: climb.hold_colour_id,
           tag_colour_id: climb.tag_colour_id,
+          climb_type: climb.climb_type,
           photo: climb.photo,
           created_at: climb.created_at,
           wall_name: climb.walls?.name || '-',
@@ -172,6 +175,7 @@ export default function AdminClimbsPage() {
           wall,
           hold_colour_id,
           tag_colour_id,
+          climb_type,
           photo,
           created_at,
           walls!wall(id, name),
@@ -887,9 +891,9 @@ export default function AdminClimbsPage() {
                           </select>
                         ) : (
                           <span
-                            onClick={() => startEditing(climb.id, 'tag_colour_id', climb.tag_colour_id)}
-                            className="cursor-pointer hover:underline transition-opacity duration-150"
-                            title="Click to edit"
+                            onClick={() => climb.climb_type !== 'rope' && startEditing(climb.id, 'tag_colour_id', climb.tag_colour_id)}
+                            className={climb.climb_type !== 'rope' ? 'cursor-pointer hover:underline transition-opacity duration-150' : ''}
+                            title={climb.climb_type !== 'rope' ? 'Click to edit' : undefined}
                           >
                             {climb.tag_colour_name}
                           </span>

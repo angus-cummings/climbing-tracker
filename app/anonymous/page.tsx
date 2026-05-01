@@ -40,6 +40,8 @@ export default function AnonymousPage() {
           wall,
           hold_colour_id,
           tag_colour_id,
+          climb_type,
+          rope_grade,
           hold_colour:colours!hold_colour_id (
             id,
             name,
@@ -57,8 +59,8 @@ export default function AnonymousPage() {
         `)
         .not('wall', 'is', null)
         .not('hold_colour_id', 'is', null)
-        .not('tag_colour_id', 'is', null)
         .not('sector_tag_id', 'is', null)
+        .eq('archived', false)
         .order('sector_tag_id', { ascending: true }),
       supabase.from('walls').select('id, name').order('name'),
       supabase.from('colours').select('id, name, hex_code').order('name')
@@ -270,7 +272,7 @@ export default function AnonymousPage() {
                       >
                         <Image
                           src={climb.photo}
-                          alt={`${climb.hold_colour.name} - ${climb.tag_colour.name}`}
+                          alt={`${climb.hold_colour.name} - ${climb.climb_type === 'rope' ? `grade ${climb.rope_grade}` : climb.tag_colour?.name}`}
                           width={80}
                           height={60}
                           sizes="80px"
@@ -294,7 +296,7 @@ export default function AnonymousPage() {
                           </span>
                         )}
                         <div className="text-xs sm:text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                          Grade: {climb.tag_colour.name}
+                          Grade: {climb.climb_type === 'rope' ? `${climb.rope_grade}` : climb.tag_colour?.name}
                         </div>
                       </div>
                       <div className="text-xs" style={{ color: 'var(--foreground-secondary)' }}>

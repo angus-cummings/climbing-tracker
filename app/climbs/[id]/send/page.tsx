@@ -11,7 +11,7 @@ type ClimbData = {
   sector_tag_id: number
   wall_name: string
   hold_colour_name: string
-  tag_colour_name: string
+  grade_display: string
   photo: string | null
 }
 
@@ -49,6 +49,8 @@ export default function SendClimbPage() {
             sector_tag_id,
             photo,
             archived,
+            climb_type,
+            rope_grade,
             walls!wall(name),
             hold_colour:colours!hold_colour_id(name),
             tag_colour:colours!tag_colour_id(name)
@@ -66,11 +68,14 @@ export default function SendClimbPage() {
           return
         }
 
+        const tagColourName = (Array.isArray(climbData.tag_colour) ? climbData.tag_colour[0]?.name : climbData.tag_colour?.name) || null
         setClimbData({
           sector_tag_id: climbData.sector_tag_id,
           wall_name: (Array.isArray(climbData.walls) ? climbData.walls[0]?.name : climbData.walls?.name) || 'Unknown',
           hold_colour_name: (Array.isArray(climbData.hold_colour) ? climbData.hold_colour[0]?.name : climbData.hold_colour?.name) || 'Unknown',
-          tag_colour_name: (Array.isArray(climbData.tag_colour) ? climbData.tag_colour[0]?.name : climbData.tag_colour?.name) || 'Unknown',
+          grade_display: climbData.climb_type === 'rope'
+            ? `Grade ${climbData.rope_grade}`
+            : (tagColourName || 'Unknown'),
           photo: climbData.photo,
         })
       } catch (err: any) {
@@ -189,7 +194,7 @@ export default function SendClimbPage() {
                   {climbData.wall_name}
                 </div>
                 <div className="text-base" style={{ color: 'var(--foreground-secondary)' }}>
-                  {climbData.hold_colour_name} / {climbData.tag_colour_name}
+                  {climbData.hold_colour_name} / {climbData.grade_display}
                 </div>
               </div>
 
