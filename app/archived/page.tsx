@@ -121,7 +121,7 @@ function CompetitionCard({ competition, onImageClick }: { competition: Competiti
         .eq('archived', true)
         .eq('competition_id', competition.id)
         .order('sector_tag_id', { ascending: true })
-      setClimbs((data as ArchivedClimb[]) ?? [])
+      setClimbs((data as unknown as ArchivedClimb[]) ?? [])
       setLoadingClimbs(false)
     }
   }
