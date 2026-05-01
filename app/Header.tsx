@@ -8,7 +8,6 @@ import { useUser } from '../lib/useUser'
 import { useRole } from '../lib/useRole'
 import { useTheme } from '../lib/ThemeContext'
 import { ProfileSelector } from '../components/ProfileSelector'
-import { supabase } from '../lib/supabase'
 
 export function Header() {
   const { user, loading } = useUser()
