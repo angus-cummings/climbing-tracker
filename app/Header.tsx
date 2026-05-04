@@ -66,12 +66,21 @@ export function Header() {
   return (
     <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--border)' }}>
       <div className="text-lg sm:text-xl font-bold tracking-tight" style={{ color: 'var(--foreground)' }}>
-        Rock It Comps{currentCompetition ? ` - ${currentCompetition}!` : ''}!
+        Rock It Comps{currentCompetition ? ` - ${currentCompetition}` : ''}!
       </div>
       <nav className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm w-full sm:w-auto">
         {!loading && user && (
           <>
             <ProfileSelector />
+            <Link
+              href="/home"
+              className="font-medium transition-colors whitespace-nowrap"
+              style={{ color: 'var(--foreground-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-secondary)'}
+            >
+              Home
+            </Link>
             <Link
               href="/climbs"
               className="font-medium transition-colors whitespace-nowrap"

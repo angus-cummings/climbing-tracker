@@ -11,6 +11,7 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showModal, setShowModal] = useState(false)
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,8 +32,7 @@ function LoginForm() {
     if (signInError) {
       setError(signInError.message)
     } else {
-      // Redirect to next parameter or default to /climbs
-      const nextUrl = searchParams?.get('next') || '/climbs'
+      const nextUrl = searchParams?.get('next') || '/home'
       window.location.href = nextUrl
     }
   }
@@ -54,8 +54,45 @@ function LoginForm() {
             Welcome Back
           </h1>
           <p className="mb-6 text-sm sm:text-base" style={{ color: 'var(--foreground-secondary)' }}>
-            Sign in to track your Summer Sector climbs
+            Sign in to track your climbs
           </p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="mb-6 text-xs italic font-medium text-red-500 hover:text-red-400 transition-colors rounded-lg px-3 py-1.5 border border-red-500 hover:bg-red-500/10"
+          >
+            ! Note to returning Summer Sector users !
+          </button>
+
+          {showModal && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              onClick={() => setShowModal(false)}
+            >
+              <div
+                className="relative w-full max-w-md rounded-2xl p-6 shadow-xl"
+                style={{
+                  backgroundColor: 'var(--card-bg)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--card-border)',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <h2 className="mb-3 text-base font-semibold text-red-500">Note to Summer Sector users</h2>
+                <p className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
+                  The website domain has changed since the app was released but your account still exists. If you use a password manager, you'll need to check it and manually enter your password for this domain.
+                </p>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="mt-4 text-xs font-medium transition-colors"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={signIn} className="space-y-4">
             <div>

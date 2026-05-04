@@ -6,9 +6,7 @@ import { useUser } from './useUser'
 
 type Profile = {
   profile_id: string
-  competitor_number: number
   comp_cohort: string
-  is_junior: boolean
   age_category: string | null
   username: string | null
   phone_number: string | null
@@ -23,7 +21,6 @@ type ProfileContextType = {
   refreshProfiles: () => Promise<void>
   createProfile: (profileData: {
     comp_cohort: string
-    is_junior?: boolean
     age_category?: string
     phone_number?: string
     profile_name: string
@@ -94,7 +91,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const createProfile = async (profileData: {
     comp_cohort: string
-    is_junior?: boolean
     age_category?: string
     phone_number?: string
     profile_name: string
@@ -107,7 +103,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         p_profile_name: profileData.profile_name,
         p_comp_cohort: profileData.comp_cohort,
         p_age_category: profileData.age_category || null,
-        p_is_junior: profileData.is_junior || false,
         p_phone_number: profileData.phone_number || null
       })
 

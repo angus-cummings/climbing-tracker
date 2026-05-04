@@ -7,6 +7,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../lib/useUser'
 import { useRole } from '../../lib/useRole'
@@ -39,6 +40,9 @@ export default function ClimbsPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [unsendClimbId, setUnsendClimbId] = useState<string | null>(null)
 
+  const [currentCompetitionId, setCurrentCompetitionId] = useState<number | null | undefined>(undefined)
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null)
+
   // Filter states
   const [showFilters, setShowFilters] = useState(false)
   const [showPhotos, setShowPhotos] = useState(true)
@@ -48,7 +52,19 @@ export default function ClimbsPage() {
   const [sentFilter, setSentFilter] = useState<'all' | 'sent' | 'unsent'>('all')
 
   useEffect(() => {
-    if (!user || !selectedProfile) return
+    if (!user) return
+    supabase
+      .from('competitions')
+      .select('id')
+      .eq('is_current', true)
+      .single()
+      .then(({ data }) => setCurrentCompetitionId(data?.id ?? null))
+  }, [user])
+
+  useEffect(() => {
+    if (!user || !selectedProfile || currentCompetitionId === undefined || currentCompetitionId === null) return
+
+    setIsRegistered(null)
 
     Promise.all([
       supabase
@@ -82,17 +98,25 @@ export default function ClimbsPage() {
         .not('hold_colour_id', 'is', null)
         .not('sector_tag_id', 'is', null)
         .eq('archived', false)
+        .eq('competition_id', currentCompetitionId as number)
         .order('sector_tag_id', { ascending: true }),
       supabase
         .from('ascents')
         .select('id, climb_id, sent, profile_id')
+        .eq('profile_id', selectedProfile.profile_id),
+      supabase
+        .from('competition_registrations')
+        .select('id')
         .eq('profile_id', selectedProfile.profile_id)
-    ]).then(([{ data: climbsData }, { data: profileAscents }]) => {
+        .eq('competition_id', currentCompetitionId as number)
+        .maybeSingle(),
+    ]).then(([{ data: climbsData }, { data: profileAscents }, { data: regData }]) => {
       const climbsWithProfileAscents = (climbsData || []).map(climb => ({
         ...climb,
         ascents: (profileAscents || []).filter(ascent => ascent.climb_id === climb.id)
       }))
       setClimbs(climbsWithProfileAscents)
+      setIsRegistered(regData !== null)
     })
 
     Promise.all([
@@ -103,7 +127,7 @@ export default function ClimbsPage() {
       setColours(colourData ?? [])
     })
 
-  }, [user, selectedProfile])
+  }, [user, selectedProfile, currentCompetitionId])
 
   useEffect(() => {
     let filtered = [...climbs]
@@ -216,11 +240,42 @@ export default function ClimbsPage() {
 
   if (!user || !selectedProfile) return <p>Loading…</p>
 
+  if (currentCompetitionId === null) {
+    return (
+      <main className="flex min-h-[80vh] items-center justify-center">
+        <div className="text-center">
+          <p className="mb-2 font-medium" style={{ color: 'var(--foreground)' }}>No active competition</p>
+          <p className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>
+            Browse <a href="/home" style={{ color: 'var(--accent)' }}>past competitions</a>
+          </p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="px-0 py-4 sm:py-8">
       <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6" style={{ color: 'var(--foreground)' }}>
         Climbs
       </h2>
+
+      {isRegistered === false && (
+        <div
+          className="mb-4 rounded-lg px-4 py-3 text-sm"
+          style={{
+            backgroundColor: 'rgba(234, 179, 8, 0.1)',
+            color: '#a16207',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderColor: 'rgba(234, 179, 8, 0.3)',
+          }}
+        >
+          <strong>{selectedProfile.username ?? 'This profile'}</strong> isn't registered for the current competition — sends will be recorded but won't appear on the leaderboard.{' '}
+          <Link href="/home" style={{ color: 'var(--accent)', fontWeight: 600 }}>
+            Register on the Home page.
+          </Link>
+        </div>
+      )}
 
       {/* Filters Section */}
       <div

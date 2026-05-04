@@ -17,7 +17,6 @@ type Profile = {
   created_at: string
   comp_cohort: string | null
   competitor_number: number
-  is_junior: boolean | null
   age_category: string | null
   phone_number: string | null
 }
@@ -46,7 +45,6 @@ export default function AdminProfilesPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'climber' | 'setter' | 'admin'>('all')
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
   const [ageCategoryFilter, setAgeCategoryFilter] = useState<'all' | 'u18' | 'adult' | 'masters'>('all')
-  const [isJuniorFilter, setIsJuniorFilter] = useState<'all' | 'yes' | 'no'>('all')
   const itemsPerPage = 25
 
   // Redirect if not admin
@@ -124,11 +122,9 @@ export default function AdminProfilesPage() {
       const updateData: any = { [field]: value }
       
       // Handle empty strings as null (for text fields)
-      if (value === '' && field !== 'is_junior') {
+      if (value === '') {
         updateData[field] = null
       }
-      
-      // is_junior is already handled as boolean | null, so no conversion needed
 
       const { error } = await supabase
         .from('profiles')
@@ -209,8 +205,7 @@ export default function AdminProfilesPage() {
           (profile.comp_cohort?.toLowerCase().includes(lowerQuery) ?? false) ||
           (profile.age_category?.toLowerCase().includes(lowerQuery) ?? false) ||
           (profile.phone_number?.toLowerCase().includes(lowerQuery) ?? false) ||
-          profile.competitor_number.toString().includes(lowerQuery) ||
-          (profile.is_junior !== null && (profile.is_junior ? 'yes' : 'no').includes(lowerQuery))
+          profile.competitor_number.toString().includes(lowerQuery)
         )
       })
     }
@@ -228,12 +223,6 @@ export default function AdminProfilesPage() {
     // Apply age category filter
     if (ageCategoryFilter !== 'all') {
       filtered = filtered.filter(profile => profile.age_category?.toLowerCase() === ageCategoryFilter.toLowerCase())
-    }
-
-    // Apply is_junior filter
-    if (isJuniorFilter !== 'all') {
-      const isJunior = isJuniorFilter === 'yes'
-      filtered = filtered.filter(profile => profile.is_junior === isJunior)
     }
 
     return filtered
@@ -279,7 +268,7 @@ export default function AdminProfilesPage() {
   // Reset page when filters or search change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, roleFilter, cohortFilter, ageCategoryFilter, isJuniorFilter])
+  }, [searchQuery, roleFilter, cohortFilter, ageCategoryFilter])
 
   // Get filtered and sorted profiles
   const filteredProfiles = filterProfiles(profiles, searchQuery)
@@ -365,7 +354,6 @@ export default function AdminProfilesPage() {
                 roleFilter !== 'all',
                 cohortFilter !== 'all',
                 ageCategoryFilter !== 'all',
-                isJuniorFilter !== 'all',
               ].filter(Boolean).length
               return activeFilters > 0 ? (
                 <span 
@@ -546,37 +534,6 @@ export default function AdminProfilesPage() {
                 </select>
               </div>
 
-              {/* Is Junior Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground-secondary)' }}>
-                  Junior
-                </label>
-                <select
-                  value={isJuniorFilter}
-                  onChange={(e) => setIsJuniorFilter(e.target.value as 'all' | 'yes' | 'no')}
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-all duration-150"
-                  style={{
-                    backgroundColor: 'var(--input-bg)',
-                    color: 'var(--foreground)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: 'var(--input-border)',
-                    cursor: 'pointer',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent)'
-                    e.currentTarget.style.boxShadow = `0 0 0 2px var(--accent)`
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--input-border)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                >
-                  <option value="all">All</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </div>
             </div>
 
             {/* Clear Filters Button */}
@@ -587,7 +544,6 @@ export default function AdminProfilesPage() {
                   setRoleFilter('all')
                   setCohortFilter('all')
                   setAgeCategoryFilter('all')
-                  setIsJuniorFilter('all')
                 }}
                 className="rounded-lg px-4 py-2 text-sm font-medium transition"
                 style={{
@@ -722,9 +678,6 @@ export default function AdminProfilesPage() {
                   </th>
                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Age
-                  </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
-                    Junior
                   </th>
                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: 'var(--foreground-secondary)' }}>
                     Phone
@@ -904,51 +857,6 @@ export default function AdminProfilesPage() {
                             title="Click to edit"
                           >
                             {profile.age_category || '-'}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td 
-                      className="px-2 sm:px-4 py-3 text-xs sm:text-sm hidden lg:table-cell" 
-                      style={{
-                        color: 'var(--foreground)',
-                        ...(editing?.profileId === profile.profile_id && editing?.field === 'is_junior' ? { position: 'relative', zIndex: 1000, overflow: 'visible' } : {})
-                      }}
-                    >
-                      <div className="h-[24px] flex items-center">
-                        {editing?.profileId === profile.profile_id && editing?.field === 'is_junior' ? (
-                          <select
-                            value={editing.value === true ? 'true' : editing.value === false ? 'false' : ''}
-                            onChange={(e) => {
-                              const val = e.target.value === '' ? null : e.target.value === 'true'
-                              handleInputChange(val)
-                            }}
-                            onBlur={handleInputBlur}
-                            onKeyDown={handleInputKeyDown}
-                            autoFocus
-                            className="rounded-lg px-2 py-1 text-sm outline-none h-[24px] transition-all duration-150"
-                            style={{
-                              backgroundColor: 'var(--input-bg)',
-                              color: 'var(--foreground)',
-                              borderWidth: '1px',
-                              borderStyle: 'solid',
-                              borderColor: 'var(--accent)',
-                              cursor: 'pointer',
-                              position: 'relative',
-                              zIndex: 1001,
-                            }}
-                          >
-                            <option value="">-</option>
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                          </select>
-                        ) : (
-                          <span
-                            onClick={() => startEditing(profile.profile_id, 'is_junior', profile.is_junior)}
-                            className="cursor-pointer hover:underline transition-opacity duration-150"
-                            title="Click to edit"
-                          >
-                            {profile.is_junior === null ? '-' : profile.is_junior ? 'Yes' : 'No'}
                           </span>
                         )}
                       </div>

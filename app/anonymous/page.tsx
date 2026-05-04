@@ -27,9 +27,25 @@ export default function AnonymousPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [competitorNumberError, setCompetitorNumberError] = useState<string | null>(null)
+  const [currentCompetition, setCurrentCompetition] = useState<{ id: number; name: string } | null>(null)
+  const [competitionLoading, setCompetitionLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch climbs, walls, and colours
+    supabase
+      .from('competitions')
+      .select('id, name')
+      .eq('is_current', true)
+      .single()
+      .then(({ data }) => {
+        setCurrentCompetition(data ?? null)
+        setCompetitionLoading(false)
+      })
+  }, [])
+
+  useEffect(() => {
+    if (!currentCompetition) return
+
+    // Fetch climbs, walls, and colours scoped to the current competition
     Promise.all([
       supabase
         .from('climbs')
@@ -61,6 +77,7 @@ export default function AnonymousPage() {
         .not('hold_colour_id', 'is', null)
         .not('sector_tag_id', 'is', null)
         .eq('archived', false)
+        .eq('competition_id', currentCompetition.id)
         .order('sector_tag_id', { ascending: true }),
       supabase.from('walls').select('id, name').order('name'),
       supabase.from('colours').select('id, name, hex_code').order('name')
@@ -69,7 +86,7 @@ export default function AnonymousPage() {
       setWalls(wallData ?? [])
       setColours(colourData ?? [])
     })
-  }, [])
+  }, [currentCompetition])
 
   const handleRecordSend = async (climbId: string) => {
     setError(null)
@@ -147,13 +164,42 @@ export default function AnonymousPage() {
     }
   })
 
+  if (competitionLoading) {
+    return (
+      <main className="py-4 sm:py-8">
+        <p className="text-sm" style={{ color: 'var(--foreground-secondary)' }}>Loading…</p>
+      </main>
+    )
+  }
+
+  if (!currentCompetition) {
+    return (
+      <main className="py-4 sm:py-8">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+          Record Sends (Anonymous)
+        </h2>
+        <div
+          className="rounded-2xl p-6 text-center"
+          style={{
+            backgroundColor: 'var(--card-bg)',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderColor: 'var(--card-border)',
+          }}
+        >
+          <p style={{ color: 'var(--foreground-secondary)' }}>No active competition at the moment</p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="px-0 py-4 sm:py-8">
       <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6" style={{ color: 'var(--foreground)' }}>
         Record Sends (Anonymous)
       </h2>
 
-      <div 
+      <div
         className="mb-6 rounded-2xl p-4"
         style={{
           backgroundColor: 'var(--card-bg)',
@@ -205,7 +251,7 @@ export default function AnonymousPage() {
           </p>
         )}
         <p className="mt-2 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-          Enter your competitor number to record sends. You won't be able to see your recorded sends here.
+          Enter your competitor number for {currentCompetition.name}. You won't be able to see your recorded sends here.
         </p>
       </div>
 

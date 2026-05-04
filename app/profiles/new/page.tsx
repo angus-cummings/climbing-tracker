@@ -14,7 +14,6 @@ export default function NewProfilePage() {
   const [name, setName] = useState('')
   const [compCohort, setCompCohort] = useState<'male' | 'female' | 'inclusive'>('inclusive')
   const [ageCategory, setAgeCategory] = useState<'u18' | 'adult' | 'masters' | ''>('')
-  const [isJunior, setIsJunior] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -51,7 +50,6 @@ export default function NewProfilePage() {
     try {
       await createProfile({
         comp_cohort: compCohort,
-        is_junior: isJunior,
         age_category: ageCategory,
         profile_name: name
         // phone_number not provided - will be inherited from account's first profile
@@ -59,7 +57,7 @@ export default function NewProfilePage() {
 
       setMessage('Competitor profile created successfully!')
       await refreshProfiles()
-      setTimeout(() => router.push('/climbs'), 1500)
+      setTimeout(() => router.push('/home'), 1500)
     } catch (err: any) {
       setError(err.message || 'Failed to create competitor profile')
     } finally {
@@ -224,38 +222,6 @@ export default function NewProfilePage() {
                 <option value="adult">18+ (Adults)</option>
                 <option value="masters">40+ (Masters)</option>
               </select>
-            </div>
-
-            {/* Junior Account Toggle */}
-            <div>
-              <label 
-                className="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition"
-                style={{
-                  backgroundColor: 'var(--input-bg)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--input-border)',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--input-bg)'}
-              >
-                <input
-                  type="checkbox"
-                  checked={isJunior}
-                  onChange={e => setIsJunior(e.target.checked)}
-                  className="h-4 w-4 rounded"
-                  style={{ accentColor: 'var(--accent)' }}
-                  disabled={loading}
-                />
-                <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                  Junior competitor (under 18)
-                </span>
-              </label>
-              {isJunior && (
-                <p className="mt-1 text-xs" style={{ color: 'var(--foreground-secondary)', opacity: 0.7 }}>
-                  Parent/guardian contact will use your account email ({user.email})
-                </p>
-              )}
             </div>
 
             {error && (

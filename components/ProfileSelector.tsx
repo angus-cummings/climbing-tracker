@@ -26,7 +26,7 @@ export function ProfileSelector() {
             borderColor: 'var(--border)',
           }}
         >
-          Competitor #{selectedProfile?.competitor_number}
+          {selectedProfile?.username ?? 'Profile'}
         </span>
         <Link
           href="/profiles/new"
@@ -62,7 +62,7 @@ export function ProfileSelector() {
         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)'}
       >
-        <span>Competitor #{selectedProfile?.competitor_number}</span>
+        <span>{selectedProfile?.username ?? 'Profile'}</span>
         <svg
           className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
           width="12"
@@ -121,10 +121,7 @@ export function ProfileSelector() {
                     }
                   }}
                 >
-                  <div className="font-medium">#{profile.competitor_number}</div>
-                  {profile.username && (
-                    <div className="text-xs opacity-75">{profile.username}</div>
-                  )}
+                  <div className="font-medium">{profile.username ?? `Profile ${profile.profile_id.slice(0, 6)}`}</div>
                 </button>
               ))}
               <div className="border-t my-1" style={{ borderColor: 'var(--card-border)' }} />

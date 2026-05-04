@@ -1,2 +1,0 @@
--- This migration was applied directly to the remote database.
--- The local file is a placeholder to satisfy the CLI's migration history check.
