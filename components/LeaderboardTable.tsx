@@ -34,8 +34,8 @@ export function LeaderboardTable({ competitionId, competitionName }: Leaderboard
   const [competitors, setCompetitors] = useState<CompetitorStats[]>([])
   const [filteredCompetitors, setFilteredCompetitors] = useState<CompetitorStats[]>([])
   const [cohortFilter, setCohortFilter] = useState<'all' | 'male' | 'female' | 'inclusive'>('all')
-  const [ageCategoryFilter, setAgeCategoryFilter] = useState<'all' | 'u18' | 'adult' | 'masters'>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [competitionCategories, setCompetitionCategories] = useState<string[]>([])
   const [leaderboardMode, setLeaderboardMode] = useState<'overall' | 'pumpfest'>('overall')
   const [loadingData, setLoadingData] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -48,16 +48,26 @@ export function LeaderboardTable({ competitionId, competitionName }: Leaderboard
     const fetchLeaderboardData = async () => {
       setLoadingData(true)
 
-      const { data: leaderboardData, error } = await supabase
-        .rpc('leaderboard_stats', { p_competition_id: competitionId })
-        .order('total_points', { ascending: false })
-        .order('competitor_number', { ascending: true, nullsFirst: false })
+      const [{ data: leaderboardData, error }, { data: categoriesData }] = await Promise.all([
+        supabase
+          .rpc('leaderboard_stats', { p_competition_id: competitionId })
+          .order('total_points', { ascending: false })
+          .order('competitor_number', { ascending: true, nullsFirst: false }),
+        supabase
+          .from('competition_categories')
+          .select('name')
+          .eq('competition_id', competitionId)
+          .order('sort_order')
+          .order('name'),
+      ])
 
       if (error) {
         console.error('Error fetching leaderboard data:', error)
         setLoadingData(false)
         return
       }
+
+      setCompetitionCategories((categoriesData ?? []).map((c: { name: string }) => c.name))
 
       let usernameMap: Record<string, string | null> = {}
       if (isAdmin && leaderboardData && leaderboardData.length > 0) {
@@ -103,9 +113,6 @@ export function LeaderboardTable({ competitionId, competitionName }: Leaderboard
     if (cohortFilter !== 'all') {
       filtered = filtered.filter(c => c.comp_cohort?.toLowerCase() === cohortFilter.toLowerCase())
     }
-    if (ageCategoryFilter !== 'all') {
-      filtered = filtered.filter(c => c.age_category?.toLowerCase() === ageCategoryFilter.toLowerCase())
-    }
     if (leaderboardMode === 'pumpfest') {
       filtered = filtered.filter(c => c.pumpfest_points > 0)
     }
@@ -133,7 +140,7 @@ export function LeaderboardTable({ competitionId, competitionName }: Leaderboard
 
     setFilteredCompetitors(filtered)
     setCurrentPage(1)
-  }, [competitors, categoryFilter, cohortFilter, ageCategoryFilter, leaderboardMode])
+  }, [competitors, categoryFilter, cohortFilter, leaderboardMode])
 
   const totalPages = Math.ceil(filteredCompetitors.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -142,10 +149,6 @@ export function LeaderboardTable({ competitionId, competitionName }: Leaderboard
   const showingStart = filteredCompetitors.length > 0 ? startIndex + 1 : 0
   const showingEnd = Math.min(endIndex, filteredCompetitors.length)
 
-  // Derive unique categories from data to populate the filter
-  const availableCategories = Array.from(
-    new Set(competitors.map(c => c.category_name).filter(Boolean) as string[])
-  ).sort()
 
   return (
     <div>
@@ -200,14 +203,14 @@ export function LeaderboardTable({ competitionId, competitionName }: Leaderboard
         }}
       >
         <div className="space-y-4">
-          {/* Category filter — only shown when the competition has multiple categories */}
-          {availableCategories.length > 1 && (
+          {/* Category filter — only shown when the competition has categories */}
+          {competitionCategories.length > 0 && (
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
                 Category:
               </label>
               <div className="flex flex-wrap gap-2">
-                {(['all', ...availableCategories] as string[]).map((cat) => (
+                {(['all', ...competitionCategories] as string[]).map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setCategoryFilter(cat)}
@@ -281,38 +284,6 @@ export function LeaderboardTable({ competitionId, competitionName }: Leaderboard
                   onMouseLeave={(e) => { if (cohortFilter !== cohort) e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)' }}
                 >
                   {cohort}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Age category filter */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <label className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--foreground-secondary)' }}>
-              Age Category:
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {([
-                { value: 'all', label: 'All' },
-                { value: 'u18', label: 'U18' },
-                { value: 'adult', label: 'Adult' },
-                { value: 'masters', label: 'Masters' }
-              ] as const).map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setAgeCategoryFilter(value)}
-                  className="rounded-lg px-4 py-2 text-sm font-medium transition"
-                  style={{
-                    backgroundColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--button-secondary-bg)',
-                    color: ageCategoryFilter === value ? 'var(--accent-text)' : 'var(--button-secondary-text)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: ageCategoryFilter === value ? 'var(--accent)' : 'var(--border)',
-                  }}
-                  onMouseEnter={(e) => { if (ageCategoryFilter !== value) e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)' }}
-                  onMouseLeave={(e) => { if (ageCategoryFilter !== value) e.currentTarget.style.backgroundColor = 'var(--button-secondary-bg)' }}
-                >
-                  {label}
                 </button>
               ))}
             </div>
