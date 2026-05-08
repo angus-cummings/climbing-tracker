@@ -43,6 +43,12 @@ export default function HomePage() {
   }, [user, userLoading, router])
 
   useEffect(() => {
+    if (!profileLoading && !selectedProfile && user) {
+      router.push('/onboarding')
+    }
+  }, [profileLoading, selectedProfile, user, router])
+
+  useEffect(() => {
     if (!user || !selectedProfile) return
 
     setDataLoading(true)
@@ -131,24 +137,7 @@ export default function HomePage() {
 
   if (!user) return null
 
-  if (!selectedProfile) {
-    return (
-      <main className="flex min-h-[80vh] items-center justify-center">
-        <div className="text-center">
-          <p className="mb-4" style={{ color: 'var(--foreground-secondary)' }}>
-            You need a competitor profile to participate.
-          </p>
-          <Link
-            href="/profiles/new"
-            className="rounded-lg px-4 py-2 font-medium"
-            style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-text)' }}
-          >
-            Create Profile
-          </Link>
-        </div>
-      </main>
-    )
-  }
+  if (!selectedProfile) return null
 
   const currentComp = competitions.find(c => c.is_current)
   const pastComps = competitions.filter(c => !c.is_current)
