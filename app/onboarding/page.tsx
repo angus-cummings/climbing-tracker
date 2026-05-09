@@ -10,7 +10,7 @@ import { validateProfileName, validatePhoneNumber } from '../../lib/validation'
 export default function OnboardingPage() {
   const router = useRouter()
   const { user, loading: userLoading } = useUser()
-  const { profiles, profileLoading, refreshProfiles } = useProfile()
+  const { profiles, loading: profileLoading, refreshProfiles } = useProfile()
 
   const [name, setName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
